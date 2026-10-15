@@ -1,0 +1,81 @@
+@* Table rows for the Auction Release list (one row per release). Rendered by Index.cshtml for the
+   first chunk and returned on its own (Request.IsAjaxRequest) for every further chunk the list's
+   infinite scroll asks for -- see Scripts/list-infinite-scroll.js and AuctionReleaseController.Index.
+   ViewBag.RowOffset keeps the "+" expand ids unique across chunks. *@
+@model List<TeaSaleManagement.Controllers.AuctionReleaseRow>
+@{
+    var rowIndex = (int?)ViewBag.RowOffset ?? 0;
+    // The Doc No is a link into View mode only for users holding the View right (AEDV) -- UX only:
+    // AuctionReleaseController.InsertOrUpdate re-checks the right server-side.
+    var canView = (ViewBag.Permission as TeaSaleManagement.Helpers.AEDV)?.View ?? false;
+}
+@if (Model != null)
+{
+    foreach (var row in Model)
+    {
+        rowIndex++;
+        var detailId = "rowDetail" + rowIndex;
+        var dt = row.DOCDT?.ToString("yyyy-MM-dd");
+        <tr class="data-row"@TeaSaleManagement.Utility.RecordLock.RowAttrs(ViewBag.Locks, row.UNIT, row.DOCNO, row.DOCDT)>
+            <td>
+                <input type="checkbox" class="row-check" value="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT" />
+            </td>
+            <td style="text-align:center;">
+                <i class="fa fa-plus row-expand-btn" data-target="@detailId" title="Show released lots" style="cursor:pointer;"></i>
+            </td>
+            <td title="@row.UNIT">@TeaSaleManagement.UnitScope.Name(row.UNIT, ViewBag.UnitList as List<TeaSaleManagement.Models.PT.UnitOption>)</td>
+            <td>
+                @if (canView)
+                {
+                    <a href="@Url.Action("InsertOrUpdate", "AuctionRelease", new { unit = row.UNIT, docno = row.DOCNO, docdt = dt, view = true })">@row.DOCNO</a>
+                }
+                else
+                {
+                    @row.DOCNO
+                }
+            </td>
+            <td>@(row.DOCDT?.ToString("dd/MM/yyyy"))</td>
+            <td>@row.SALE_NO</td>
+            <td title="@row.SALE_CENTRE">@(string.IsNullOrEmpty(row.SALE_CENTRE_NAME) ? row.SALE_CENTRE : row.SALE_CENTRE_NAME)</td>
+            <td title="@row.BROKER">@(string.IsNullOrEmpty(row.BROKER_NAME) ? row.BROKER : row.BROKER_NAME)</td>
+            <td>@row.MARKS</td>
+            <td>@(row.PARK == "Y" ? "Provisional" : "")</td>
+            <td class="num" title="@((row.NR_LOTS ?? 0) > 0 ? (row.NR_LOTS ?? 0).ToString("0") + " lot(s) listed but not released" : "")">@((row.LOTS ?? 0).ToString("0"))</td>
+            <td class="num">@((row.RELEASE_QTY ?? 0).ToString("0.##"))</td>
+            <td class="num">@((row.TNET_WT ?? 0).ToString("0.00"))</td>
+        </tr>
+        <tr class="row-detail" id="@detailId" style="display:none;" data-docno="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT">
+            <td colspan="13" style="background:#f8f9fc;padding:10px 12px;">
+                <div style="overflow-x:auto;">
+                    <table class="detail-sub-table">
+                        <thead>
+                            <tr>
+                                <th style="width:34px;">Sl.</th>
+                                <th>Mark</th>
+                                <th>Inv No.</th>
+                                <th>Pack Date</th>
+                                <th>Grade Code</th>
+                                <th>Grade</th>
+                                <th>Category</th>
+                                <th class="num">Pack Qty</th>
+                                <th>AWR No</th>
+                                <th class="num">AWR Qty</th>
+                                <th class="num">Alloc Qty</th>
+                                <th class="num">Offer Qty</th>
+                                <th class="num">Order Qty</th>
+                                <th class="num">Confimed /Sold Qty</th>
+                                <th class="num">Release Qty</th>
+                                <th class="num">Net.Wt.</th>
+                                <th class="num">Inv. Kgs.</th>
+                                <th class="num">Total Gross Wt.</th>
+                            </tr>
+                        </thead>
+                        <tbody class="detail-items-body">
+                            <tr><td colspan="18" style="text-align:center;color:#666;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    }
+}

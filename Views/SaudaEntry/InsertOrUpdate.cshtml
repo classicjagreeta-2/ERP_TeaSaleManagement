@@ -1,0 +1,843 @@
+﻿@{
+    string screenName = (string)ViewBag.ScreenName;
+    ViewBag.Title = screenName;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    bool isEdit = ViewBag.IsEdit ?? false;
+    bool isView = ViewBag.IsView ?? false;
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <link href="~/libraries/assetspo/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order.css">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order-responsive.css">
+    <!-- Root UI lookup convention (CLAUDE.md "Lookup pickers"): Sale Type / Party / Broker / Destination (and the
+         stock list's Garden / Mark / Category filters) are jquery.inputpicker dropdowns. -->
+    <link href="~/Controllers/Test/assets/css/jquery.inputpicker.css" rel="stylesheet" />
+    <script src="~/libraries/assetspo/js/custom.js"></script>
+    <script src="~/Controllers/Test/assets/js/jquery.inputpicker.js"></script>
+    <style>
+        .inputpicker-wrapped-list .inputpicker-active td,
+        .inputpicker-wrapped-list .inputpicker-active th { background: #404e68 !important; color: #fff !important; font-weight: bold; }
+        .inputpicker-wrapped-list { min-width: max-content !important; }
+        .inputpicker-wrapped-list table { width: max-content !important; }
+        input[readonly], input:disabled, select:disabled { background-color: #f3f4f7; color: #555; }
+        .accordion-container.compact-accordion { height: auto; overflow-y: visible; }
+        .accordion-container.main-accordion { height: auto; overflow-y: visible; }
+        #gridTable th, #gridTable td { white-space: nowrap; }
+        #gridTable td input { min-width: 60px; width: 90px; }
+        #gridTable td input[type="checkbox"] { min-width: 0; width: auto; }
+        #gridTable td.num, #gridTable th.num, #gridTable tfoot td { text-align: right; }
+        #gridTable tr.is-locked td { background: #f6f7fa; color: #666; }
+        input.num { text-align: right; }
+        #gridTable td input[readonly] { cursor: default; }
+        .total-box { font-weight: bold; text-align: right; }
+        /* Pickers are as wide as their list needs (like Warehouse AWR's despatch picker), not fixed. */
+        .popup-box.picker-box { display: none; width: fit-content; min-width: 560px; max-width: min(1080px, 92vw); padding: 14px 16px; }
+        .popup-box.picker-box h2 { font-size: 16px; }
+        .popup-box.picker-box.wide { width: fit-content; }
+        .popup-box .picker-body { max-height: 52vh; overflow: auto; margin-top: 8px; }
+        .popup-box .picker-body table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+        .popup-box .picker-body th { text-align: left; background: #f4f6fa; padding: 6px 8px; border-bottom: 2px solid #ddd; color: #333; position: sticky; top: 0; }
+        .popup-box .picker-body th.num, .popup-box .picker-body td.num { text-align: right; }
+        .popup-box .picker-body td { padding: 5px 8px; border-bottom: 1px solid #eee; cursor: pointer; color: #222; white-space: nowrap; }
+        .popup-box .picker-body tr:hover td, .popup-box .picker-body tr.is-active td { background: #eef3ff; }
+        .popup-box .picker-empty { margin: 10px 4px 2px; font-size: 12px; color: #666; }
+        .stock-filters { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+        .stock-filters input[type="text"] { width: 180px; }
+        .stock-filters input[type="date"] { width: 140px; }
+        .stock-filters label { margin: 0; font-weight: normal; font-size: 12px; }
+        .stock-filters .inputpicker-overflow-hidden, .stock-filters .inputpicker-div { overflow: hidden !important; height: auto !important; max-width: 100%; }
+        .stock-filters .inputpicker-div input { display: block; }
+        .popup-box.alert-box { width: 440px; max-width: 92vw; display: none; }
+        .popup-box.alert-box .alert-message { max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+        .popup-box.alert-box .alert-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .action-btns li a.is-disabled, .action-btns li button:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div class="general-container">
+        <div class="purchase-details">
+            <div class="header-content">
+                <div class="action-btns">
+                    <ul>
+                        <li><a href="@Url.Action("Index", "SaudaEntry")"><i class="fa fa-arrow-left"></i> Back</a></li>
+                        <li><button type="button" id="btnSave" @(isView ? "disabled" : "")><i class="fa fa-floppy-o"></i> Save</button></li>
+                        <li><a href="@Url.Action("Index", "SaudaEntry")"><i class="fa fa-times"></i> Revert</a></li>
+                        <li style="margin-left:auto">
+                            <label class="btn btn-inverse pull-right" style="margin:0; border:none;">
+                                Status : <span id="statusText">@(isView ? "View" : isEdit ? "Edit" : "Add")</span>
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+                <div class="header-details">
+                    <div class="left">
+                        <div class="order-code">
+                            <div class="txt"><div class="title-heading">@screenName</div></div>
+                        </div>
+                        <div class="title-heading">SAUDA NO. : <span id="hdrDocNo"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container compact-accordion">
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Unit</span></div>
+                    <div class="accordion-body">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Unit</label>
+                                @* #UNIT_disp keeps the code that is saved; #UNIT_name shows the unit's name. *@
+                                <input type="hidden" id="UNIT_disp" />
+                                <input type="text" id="UNIT_name" readonly />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container main-accordion">
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Header</span></div>
+                    <div class="accordion-body">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Sauda No</label>
+                                <input type="text" id="DOCNO" readonly placeholder="(auto)" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sauda Date <span>(*)</span></label>
+                                <input type="date" id="DOCDT" min="@ViewBag.MinDocDate" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sale Type <span>(*)</span></label>
+                                <input type="text" id="SALE_TYPE" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Sale Type Name</label>
+                                <input type="text" id="SALE_TYPE_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Party <span id="partyReq">(*)</span></label>
+                                <input type="text" id="PCD" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Party Name</label>
+                                <input type="text" id="PCD_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Broker</label>
+                                <input type="text" id="BROKER" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Broker Name</label>
+                                <input type="text" id="BROKER_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            @* VB6: Destination is shown on location "JST" only. *@
+                            <div class="form-col-20 jst-only" style="display:none;">
+                                <label>Destination</label>
+                                <input type="text" id="DEST_TO" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20 jst-only" style="display:none;">
+                                <label>Destination Name</label>
+                                <input type="text" id="DEST_TO_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Total Bags</label>
+                                <input type="text" id="TOTAL_BAGS" class="num total-box" readonly value="0" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Total Kgs</label>
+                                <input type="text" id="TOTAL_KGS" class="num total-box" readonly value="0.00" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Total Amount (Rs.)</label>
+                                <input type="text" id="TOTAL_AMT" class="num total-box" readonly value="0.00" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Garden Invoice Details</span></div>
+                    <div class="accordion-body active" style="display:block;">
+                        <div class="action-btns">
+                            <ul>
+                                <li><a href="javascript:void(0)" id="btnSelectStock"><i class="fa fa-search"></i> Select Invoices</a></li>
+                                <li><a href="javascript:void(0)" id="btnRemoveRows"><i class="fa fa-trash-o"></i> Remove Selected</a></li>
+                            </ul>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="border" id="gridTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:26px;"><input type="checkbox" id="chkAll" /></th>
+                                        <th style="width:30px;">Sl.</th>
+                                        <th>Mark</th>
+                                        <th>Inv No.</th>
+                                        <th>Pack Date</th>
+                                        <th>Grade Code</th>
+                                        <th>Grade</th>
+                                        <th>Category</th>
+                                        <th class="num">Bags</th>
+                                        <th class="num">Srl From</th>
+                                        <th class="num">Srl To</th>
+                                        <th class="num">Net.Wt.</th>
+                                        <th class="num">Inv. Kgs.</th>
+                                        <th class="num">Total Gross Wt.</th>
+                                        <th class="num">Kgs <span style="color:red;">(*)</span></th>
+                                        <th class="num">Sam. Qty</th>
+                                        <th class="num">Rate (Rs.) <span style="color:red;">(*)</span></th>
+                                        <th class="num">Amount (Rs.)</th>
+                                        <th>Warehouse Code</th>
+                                        <th>Warehouse Name</th>
+                                        <th>Sale Centre</th>
+                                        <th>Sale Centre Code</th>
+                                        <th class="num">Confirmed Kgs</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gridBody"></tbody>
+                                <tfoot>
+                                    <tr class="total">
+                                        <td colspan="8" style="text-align:right;">Total</td>
+                                        <td id="ftBags"></td>
+                                        <td colspan="3"></td>
+                                        <td id="ftTnet"></td>
+                                        <td id="ftGross"></td>
+                                        <td id="ftKgs"></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td id="ftAmt"></td>
+                                        <td colspan="5"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="pickerOverlay"></div>
+
+    <!-- VB6 "GardenInv_List" frame: lots with finished stock (bulk multi-row selection with its own filters --
+         a composite picker, not an inputpicker). -->
+    <div class="popup-box picker-box wide" id="stockPicker">
+        <div class="popup-header">
+            <h2>Garden Invoice List</h2>
+            <button type="button" class="close-btn" id="stockClose">X</button>
+        </div>
+        <div class="stock-filters">
+            <label>Garden</label>
+            <input type="text" id="stockGardenFilter" placeholder="Select Garden" autocomplete="off" />
+            <label>Mark</label>
+            <input type="text" id="stockMarkFilter" placeholder="Select Mark" autocomplete="off" />
+            <label>Category</label>
+            <input type="text" id="stockCatFilter" placeholder="Select Category" autocomplete="off" />
+        </div>
+        <div class="stock-filters">
+            <label>Packing Date From</label>
+            <input type="date" id="stockFrom" />
+            <label>Packing Date To</label>
+            <input type="date" id="stockTo" />
+            <button type="button" id="btnStockFilter" class="btn-blue" style="width:auto;padding:5px 14px;">Refresh</button>
+            <span id="stockSource" style="font-size:12px;color:#666;"></span>
+        </div>
+        <div class="stock-filters">
+            <input type="text" id="stockFind" placeholder="Inv No. / find (any column)..." style="width:260px;" autocomplete="off" />
+            <button type="button" id="btnStockSelectAll" class="btn-white" style="width:auto;padding:5px 14px;">Select All</button>
+            <button type="button" id="btnStockDeselectAll" class="btn-white" style="width:auto;padding:5px 14px;">De-Select All</button>
+            <span id="stockCount" style="font-size:12px;color:#666;"></span>
+        </div>
+        <div class="picker-body" id="stockBody"></div>
+        <div style="text-align:right;padding-top:10px;">
+            <button type="button" class="btn-blue" id="btnStockOk" style="width:auto;padding:5px 16px;">OK</button>
+            <button type="button" class="btn-white" id="btnStockCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="appAlertOverlay"></div>
+    <div class="popup-box alert-box" id="appAlertBox">
+        <div class="popup-header"><h2 id="appAlertTitle">Notice</h2></div>
+        <div class="alert-message" id="appAlertMessage"></div>
+        <div class="alert-actions">
+            <button type="button" class="btn-white" id="appAlertCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+            <button type="button" class="btn-blue" id="appAlertOk" style="width:auto;padding:5px 16px;">OK</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    var IS_EDIT = @(isEdit ? "true" : "false");
+    var IS_VIEW = @(isView ? "true" : "false");
+    var DOC = @Html.Raw(ViewBag.DocJson ?? "{}");
+    var H = DOC.head || {};
+    var URL = {
+        saleType: '@Url.Action("GetSaleType", "SaudaEntry")',
+        party: '@Url.Action("GetParty", "SaudaEntry")',
+        broker: '@Url.Action("GetBroker", "SaudaEntry")',
+        dest: '@Url.Action("GetDestination", "SaudaEntry")',
+        mark: '@Url.Action("GetMark", "SaudaEntry")',
+        garden: '@Url.Action("GetGarden", "SaudaEntry")',
+        category: '@Url.Action("GetCategory", "SaudaEntry")',
+        stock: '@Url.Action("GetAvailableStock", "SaudaEntry")',
+        save: '@Url.Action("Save", "SaudaEntry")',
+        list: '@Url.Action("Index", "SaudaEntry")'
+    };
+    var MAX_LINES = 998;                // VB6 detailno = 999 (T_SAUDA.SRLNO NUMBER(4))
+    // Column limits of T_SAUDA: BAG_CHEST (7,2), NET_WT (8,2), TNET_WT / TGROSS_WT / ORDER_QTY / SAMPLE_QTY / RATE / AMT (10,2).
+    var MAX = { BAG_CHEST: 99999.99, TNET_WT: 99999999.99, ORDER_QTY: 99999999.99, SAMPLE_QTY: 99999999.99, RATE: 99999999.99, AMT: 99999999.99 };
+    var COL_LABEL = { BAG_CHEST: 'Bags', TNET_WT: 'Inv. Kgs', ORDER_QTY: 'Kgs', SAMPLE_QTY: 'Sam. Qty', RATE: 'Rate', AMT: 'Amount' };
+
+    // ---------------------------------------------------------------- helpers
+    $('#pickerOverlay, #stockPicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
+    function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
+    function r2(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 100 + 1e-7) / 100; }
+    function f2(v) { return r2(v).toFixed(2); }
+    function fc(v) { return String(r2(v)); }            // bags: no forced decimals
+    function iso(d) { return d ? String(d).substring(0, 10) : ''; }
+    function dmy(d) { d = iso(d); return d ? d.substring(8, 10) + '/' + d.substring(5, 7) + '/' + d.substring(0, 4) : ''; }
+    function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
+
+    function closeAlert() { $('#appAlertOverlay, #appAlertBox').fadeOut(120); }
+    function showAlert(message, onOk) { AppMsg.show(message, onOk); }
+    function showConfirm(message, onYes, onNo) {
+        $('#appAlertTitle').text('Confirm');
+        $('#appAlertMessage').text(message || '');
+        $('#appAlertCancel').show().off('click').on('click', function () { closeAlert(); if (onNo) onNo(); });
+        $('#appAlertOk').off('click').on('click', function () { closeAlert(); onYes(); });
+        $('#appAlertOverlay, #appAlertBox').fadeIn(120);
+    }
+    function failMsg(x, fallback) {
+        if (x && x.status === 440) {
+            showAlert((x.responseJSON && x.responseJSON.message) || 'Your session has expired. Please log in again.', function () { window.location.reload(); });
+            return;
+        }
+        if (x && x.statusText === 'abort') return;
+        showAlert((x && x.responseJSON && x.responseJSON.message) || fallback || 'Could not load data. Please try again.');
+    }
+
+    function sanitizeNum(el) {
+        var v = el.value, clean = v.replace(/[^0-9.]/g, '');
+        var dot = clean.indexOf('.');
+        if (dot >= 0) {
+            var frac = clean.substring(dot + 1).replace(/\./g, '');
+            clean = clean.substring(0, dot + 1) + frac.substring(0, 2);
+        }
+        if (clean !== v) el.value = clean;
+    }
+    $(document).on('keypress', 'input.num:not([readonly])', function (e) {
+        var ch = String.fromCharCode(e.which);
+        if (e.which < 32) return;
+        if (!/[0-9.]/.test(ch) || (ch === '.' && this.value.indexOf('.') >= 0 && this.selectionStart === this.selectionEnd)) e.preventDefault();
+    });
+    $(document).on('input paste', 'input.num:not([readonly])', function () { var el = this; setTimeout(function () { sanitizeNum(el); }, 0); });
+
+    // ---------------------------------------------------------------- state
+    var FY_START = iso(H.FY_START), FY_END = iso(H.FY_END);
+    var TODAY = iso(H.TODAY) || new Date().toISOString().substring(0, 10);
+    var LOCK_DATE = iso(H.LOCK_DATE);
+    var UNIT = H.UNIT || '';
+    // VB6 loca1 = "JST": Party or Broker, Destination shown, Inv. Kgs / Kgs keyed, Bags may be 0.
+    var IS_JST = !!H.IS_JST;
+    // VB6 InvDoneFlg: a lot is confirmed -> the header is frozen.
+    var INV_DONE = !!H.INV_DONE;
+    var MIN_DOC = '@ViewBag.MinDocDate';
+    var rows = [], seq = 0;
+
+    // ---------------------------------------------------------------- header
+    $('#UNIT_disp').val(UNIT);
+    $('#UNIT_name').val(H.UNIT_NAME || UNIT).attr('title', UNIT);
+    $('#DOCNO').val(H.DOCNO || '');
+    $('#hdrDocNo').text(H.DOCNO || '');
+    $('#SALE_TYPE').val(H.SALE_TYPE || ''); $('#SALE_TYPE_disp').val(H.SALE_TYPE_NAME || '');
+    $('#PCD').val(H.PCD || ''); $('#PCD_disp').val(H.PARTY_NAME || '');
+    $('#BROKER').val(H.BROKER || ''); $('#BROKER_disp').val(H.BROKER_NAME || '');
+    $('#DEST_TO').val(H.DEST_TO || ''); $('#DEST_TO_disp').val(H.DESTINATION || '');
+    if (IS_JST) { $('.jst-only').show(); $('#partyReq').text(''); }
+    $('#stockFrom').val(iso(H.STOCK_FROM));
+    $('#stockTo').val(iso(H.STOCK_TO));
+
+    if (IS_EDIT) {
+        // Doc Date is part of the sauda's key (Unit + Sauda No + Date): fixed once saved.
+        $('#DOCDT').val(iso(H.DOCDT)).prop('disabled', true);
+    } else {
+        // VB6 blankrec: today, or the year end once the year is over; never a future date.
+        var maxDt = TODAY < FY_END ? TODAY : FY_END;
+        var minDt = FY_START;
+        if (MIN_DOC && MIN_DOC > minDt) minDt = MIN_DOC;
+        $('#DOCDT').attr('min', minDt).attr('max', maxDt).val(maxDt < minDt ? minDt : maxDt);
+    }
+
+    function headerLocked() { return IS_VIEW || INV_DONE; }
+    function saleTypeFirst() { return String($('#SALE_TYPE').val() || '').substring(0, 1); }
+    // VB6 GridOnOff: a sale type starting "5" has no Rate to key.
+    function rateLocked() { return saleTypeFirst() === '5'; }
+
+    function applyModeUi() {
+        $('#SALE_TYPE, #PCD, #BROKER, #DEST_TO').prop('readonly', headerLocked()).attr('placeholder', headerLocked() ? '' : 'Click to select');
+        $('#btnSelectStock, #btnRemoveRows').toggleClass('is-disabled', IS_VIEW);
+        if (IS_VIEW) $('input, select, textarea').prop('disabled', true);
+    }
+
+    // ---------------------------------------------------------------- lines
+    function lineKey(r) { return [r.INVNO || '', iso(r.PACK_DATE), r.GRADE || '', r.MARK || ''].join('|').toUpperCase(); }
+
+    function newRow(src) {
+        var r = $.extend({
+            MARK: '', MARK_NAME: '', INVNO: '', PACK_DATE: '', GRADE: '', GRADE_NAME: '', CAT: '', CATEGORY: '',
+            BAG_CHEST: 0, CHESTSLF: 0, CHESTSLT: 0, NET_WT: 0, GROSS: null, TNET_WT: 0, TGROSS_WT: 0, ORDER_QTY: 0, SAMPLE_QTY: 0,
+            RATE: 0, AMT: 0, WAREHOUSE: '', WAREHOUSE_NAME: '', SALE_CENTRE: '', SALE_CENTRE_NAME: '', CONF_QTY: 0, LOCKED: ''
+        }, src || {});
+        ['MARK', 'MARK_NAME', 'INVNO', 'GRADE', 'GRADE_NAME', 'CAT', 'CATEGORY', 'WAREHOUSE', 'WAREHOUSE_NAME', 'SALE_CENTRE', 'SALE_CENTRE_NAME', 'LOCKED'].forEach(function (k) { r[k] = r[k] || ''; });
+        r.PACK_DATE = iso(r.PACK_DATE);
+        ['BAG_CHEST', 'NET_WT', 'TNET_WT', 'TGROSS_WT', 'ORDER_QTY', 'SAMPLE_QTY', 'RATE', 'AMT', 'CONF_QTY'].forEach(function (k) { r[k] = r2(r[k]); });
+        r.CHESTSLF = num(r.CHESTSLF); r.CHESTSLT = num(r.CHESTSLT);
+        // VB6 dtload: gross per bag = Total Gross / Bags.
+        if (r.GROSS == null) r.GROSS = r.BAG_CHEST > 0 ? num(r.TGROSS_WT) / r.BAG_CHEST : num(r.TGROSS_WT);
+        r._cid = ++seq;
+        return r;
+    }
+    // VB6 DATAGRID1_BeforeColUpdate / BeforeDelete: a lot confirmed against this sauda cannot be changed
+    // or removed. The API re-checks on Save.
+    function isLocked(r) { return IS_EDIT && !!r.LOCKED; }
+    var LOCK_REASON = 'Sales Invoice done Against this Garden Invoice. Can\'t Edit It';
+    function ro(locked) { return (IS_VIEW || locked) ? ' readonly tabindex="-1"' : ''; }
+
+    function renderGrid() {
+        var $tb = $('#gridBody').empty();
+        rows.forEach(function (r, i) {
+            r.SRLNO = i + 1;
+            var lk = isLocked(r);
+            var tr = $('<tr data-cid="' + r._cid + '"' + (lk ? ' class="is-locked" title="' + esc(LOCK_REASON) + '"' : '') + '></tr>');
+            tr.append('<td><input type="checkbox" class="rowChk" ' + ((IS_VIEW || lk) ? 'disabled' : '') + ' /></td>');
+            tr.append('<td>' + r.SRLNO + '</td>');
+            tr.append('<td title="' + esc(r.MARK) + '">' + esc(r.MARK_NAME || r.MARK) + '</td>');
+            tr.append('<td>' + esc(r.INVNO) + '</td>');
+            tr.append('<td>' + esc(dmy(r.PACK_DATE)) + '</td>');
+            tr.append('<td>' + esc(r.GRADE) + '</td>');
+            tr.append('<td>' + esc(r.GRADE_NAME) + '</td>');
+            tr.append('<td>' + esc(r.CATEGORY) + '</td>');
+            tr.append('<td class="num"><input type="text" inputmode="decimal" class="num f-BAG_CHEST" data-col="BAG_CHEST" value="' + fc(r.BAG_CHEST) + '"' + ro(lk) + ' /></td>');
+            tr.append('<td class="num">' + esc(r.CHESTSLF || '') + '</td>');
+            tr.append('<td class="num">' + esc(r.CHESTSLT || '') + '</td>');
+            tr.append('<td class="num c-NET_WT">' + f2(r.NET_WT) + '</td>');
+            // VB6 Form_Load: Inv. Kgs and Kgs take focus on location "JST" only.
+            tr.append(IS_JST ? numCell(r, 'TNET_WT', lk) : '<td class="num c-TNET_WT">' + f2(r.TNET_WT) + '</td>');
+            tr.append('<td class="num c-TGROSS_WT">' + f2(r.TGROSS_WT) + '</td>');
+            tr.append(IS_JST ? numCell(r, 'ORDER_QTY', lk) : '<td class="num c-ORDER_QTY">' + f2(r.ORDER_QTY) + '</td>');
+            tr.append(numCell(r, 'SAMPLE_QTY', lk));
+            tr.append(numCell(r, 'RATE', lk || rateLocked()));
+            tr.append('<td class="num c-AMT">' + f2(r.AMT) + '</td>');
+            tr.append('<td>' + esc(r.WAREHOUSE) + '</td>');
+            tr.append('<td>' + esc(r.WAREHOUSE_NAME) + '</td>');
+            tr.append('<td>' + esc(r.SALE_CENTRE_NAME) + '</td>');
+            tr.append('<td>' + esc(r.SALE_CENTRE) + '</td>');
+            tr.append('<td class="num">' + (r.CONF_QTY ? f2(r.CONF_QTY) : '') + '</td>');
+            $tb.append(tr);
+        });
+        if (!rows.length) $tb.append('<tr><td colspan="23" style="text-align:center;color:#666;">Use "Select Invoices" to pick the garden invoices from the stock.</td></tr>');
+        refreshTotals();
+    }
+    function numCell(r, col, locked) {
+        return '<td class="num"><input type="text" inputmode="decimal" class="num f-' + col + '" data-col="' + col + '" value="' + f2(r[col]) + '"' + ro(locked) + ' /></td>';
+    }
+
+    // VB6 grid footers: Bags, Inv. Kgs, Total Gross Wt, Kgs, Amount.
+    function refreshTotals() {
+        var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0, ORDER_QTY: 0, AMT: 0 };
+        rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
+        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f2(t.TNET_WT)); $('#ftGross').text(f2(t.TGROSS_WT));
+        $('#ftKgs').text(f2(t.ORDER_QTY)); $('#ftAmt').text(f2(t.AMT));
+        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_KGS').val(f2(t.ORDER_QTY)); $('#TOTAL_AMT').val(f2(t.AMT));
+    }
+
+    function findRow(cid) { return rows.find(function (r) { return r._cid == cid; }); }
+
+    // VB6 DATAGRID1_BeforeColUpdate:
+    //   Bags        -> Inv. Kgs = Net Wt x Bags, Total Gross = gross per bag x Bags, then as Rate / Sample
+    //   Rate/Sample -> Kgs = Inv. Kgs - Sample; Amount = Kgs x Rate
+    //   Kgs ("JST") -> Amount = Kgs x Rate
+    //   Inv. Kgs ("JST") -> nothing else changes (as VB6)
+    function recalc(r, col) {
+        if (col === 'TNET_WT') return;
+        if (col === 'BAG_CHEST') {
+            r.TNET_WT = r2(num(r.NET_WT) * num(r.BAG_CHEST));
+            r.TGROSS_WT = r2(num(r.GROSS) * num(r.BAG_CHEST));
+        }
+        if (col !== 'ORDER_QTY') r.ORDER_QTY = r2(num(r.TNET_WT) - num(r.SAMPLE_QTY));
+        r.AMT = r2(num(r.ORDER_QTY) * num(r.RATE));
+    }
+    function paintRow($tr, r) {
+        ['NET_WT', 'TGROSS_WT', 'AMT'].forEach(function (c) { $tr.find('.c-' + c).text(f2(r[c])); });
+        ['TNET_WT', 'ORDER_QTY'].forEach(function (c) {
+            var $in = $tr.find('input.f-' + c);
+            if ($in.length) $in.val(f2(r[c])); else $tr.find('.c-' + c).text(f2(r[c]));
+        });
+    }
+
+    $('#gridBody').on('change', 'input.num', function () {
+        var $tr = $(this).closest('tr'), r = findRow($tr.data('cid')); if (!r || isLocked(r)) return;
+        var col = $(this).data('col'), v = r2(this.value);
+        if (v > MAX[col]) { showAlert(COL_LABEL[col] + ' is too large.'); v = r[col]; }
+        r[col] = v;
+        this.value = col === 'BAG_CHEST' ? fc(v) : f2(v);
+        recalc(r, col);
+        if (r.AMT > MAX.AMT) showAlert('Line ' + r.SRLNO + ': Amount is too large.');
+        paintRow($tr, r);
+        refreshTotals();
+    });
+    $('#gridBody').on('focus', 'input.num:not([readonly])', function () { var el = this; setTimeout(function () { el.select(); }, 0); });
+    $('#gridBody').on('keydown', 'input', function (e) {
+        if (e.which !== 13) return;
+        e.preventDefault();
+        $(this).trigger('change');
+        var $all = $('#gridBody input:not([readonly]):not([type="checkbox"])');
+        var i = $all.index(this);
+        if (i >= 0 && i < $all.length - 1) $all.eq(i + 1).focus();
+    });
+
+    $('#chkAll').on('change', function () { $('.rowChk:not(:disabled)').prop('checked', $(this).is(':checked')); });
+    $('#btnRemoveRows').on('click', function () {
+        if (IS_VIEW) return;
+        var cids = $('.rowChk:checked').map(function () { return $(this).closest('tr').data('cid'); }).get();
+        if (!cids.length) { showAlert('Select at least one row to remove.'); return; }
+        var held = rows.filter(function (r) { return cids.indexOf(r._cid) >= 0 && isLocked(r); });
+        if (held.length) { showAlert('Sales Invoice done Against this Garden Invoice (' + held.map(function (r) { return r.INVNO; }).join(', ') + ').\nCan\'t Delete It'); return; }
+        rows = rows.filter(function (r) { return cids.indexOf(r._cid) === -1; });
+        $('#chkAll').prop('checked', false);
+        renderGrid();
+    });
+
+    // ---------------------------------------------------------------- lookups
+    var CODE_NAME = [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Name' }];
+    var LOOKUPS = {
+        saleType: { url: URL.saleType, urlParam: function () { return { unit: UNIT }; }, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Sale Type' }] },
+        party: { url: URL.party, urlParam: function () { return { unit: UNIT, saleType: $('#SALE_TYPE').val() || '' }; },
+                 fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Party' }, { name: 'ADD1', text: 'Address' },
+                          { name: 'DESTI', text: 'Destination' }, { name: 'GST_NO', text: 'GST No' }], selectMode: 'empty' },
+        broker: { url: URL.broker, urlParam: function () { return { unit: UNIT, saleType: $('#SALE_TYPE').val() || '' }; }, fields: CODE_NAME, selectMode: 'empty' },
+        dest: { url: URL.dest, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Destination' }], selectMode: 'empty' },
+        mark: { url: URL.mark, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Mark' }, { name: 'GARDEN', text: 'Garden' }] },
+        garden: { url: URL.garden, urlParam: function () { return { unit: UNIT }; }, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Garden' }] },
+        category: { url: URL.category, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Category' }] }
+    };
+
+    // The plugin writes the picked value into the original input and fires "change"; read the row back.
+    function pickedRow($input, cfg) {
+        var key = cfg.fields[0].name, v = String($input.val() == null ? '' : $input.val()), data = [];
+        try { data = $input.inputpicker('data') || []; } catch (e) { data = []; }
+        for (var i = 0; i < data.length; i++) { if (String(data[i][key]) === v) return data[i]; }
+        return null;
+    }
+    function showPickerList($orig) {
+        $orig.inputpicker('show');
+        $orig.next('.inputpicker-overflow-hidden').find('input').trigger($.Event('keyup', { keyCode: 0 }));
+    }
+    function pickerOptions(cfg) {
+        var o = {
+            url: cfg.url,
+            fields: cfg.fields,
+            fieldText: cfg.fields[0].name,
+            fieldValue: cfg.fields[0].name,
+            headShow: true,
+            filterOpen: true,
+            autoOpen: true,
+            pagination: true,
+            pageField: 'p',
+            pageLimitField: 'limit',
+            pageLimit: 10,
+            pageCountField: 'count',
+            width: 'auto',
+            urlDelay: 0.2
+        };
+        if (cfg.urlParam) o.urlParam = cfg.urlParam();
+        if (cfg.selectMode) o.selectMode = cfg.selectMode;
+        return o;
+    }
+    function visibleInput($orig) { return $orig.next('.inputpicker-overflow-hidden').find('input'); }
+
+    function openLookup(key, $input, onSelect, onClear) {
+        var cfg = LOOKUPS[key];
+        $('.inputpicker-wrapped-list').remove();
+        if ($input.hasClass('inputpicker-original')) {
+            // Party / Broker depend on the Sale Type picked since the picker was built.
+            if (cfg.urlParam) $input.inputpicker('set', 'urlParam', cfg.urlParam());
+            setTimeout(function () { showPickerList($input); }, 0);
+            return;
+        }
+        $input.inputpicker(pickerOptions(cfg));
+        setTimeout(function () { showPickerList($input); }, 0);
+
+        function deliver(row) { if (row && onSelect) onSelect(row); }
+        $input.off('inputpicker.select').on('inputpicker.select', function (e, row) {
+            deliver(row);
+            $(this).inputpicker('hide');
+        });
+        $input.off('change.ipk').on('change.ipk', function () { deliver(pickedRow($input, cfg)); });
+        if (onClear) {
+            visibleInput($input).on('input', function () {
+                if (!$(this).val() && $input.val()) { $input.val(''); $(this).data('value', ''); onClear(); }
+            });
+        }
+    }
+
+    // Sale Type (VB6 txtSaleType): picking one clears the Broker (txtSaleType_buttonclick).
+    $('#SALE_TYPE').on('click focus', function () {
+        if (headerLocked()) return;
+        openLookup('saleType', $(this), function (t) {
+            var changed = $('#SALE_TYPE_disp').val() !== (t.NAME || '');
+            $('#SALE_TYPE_disp').val(t.NAME || '');
+            if (changed) { setPicked($('#BROKER'), ''); $('#BROKER_disp').val(''); }
+            renderGrid();      // VB6 GridOnOff: Rate is not keyed for a sale type starting "5"
+        });
+    });
+    // Party (VB6 txtParty).
+    $('#PCD').on('click focus', function () {
+        if (headerLocked()) return;
+        openLookup('party', $(this), function (p) { $('#PCD_disp').val(p.NAME || ''); }, function () { $('#PCD_disp').val(''); });
+    });
+    // Broker (VB6 txtBroker): no help for a sale type starting "3".
+    $('#BROKER').on('click focus', function () {
+        if (headerLocked() || saleTypeFirst() === '3') return;
+        openLookup('broker', $(this), function (b) { $('#BROKER_disp').val(b.NAME || ''); }, function () { $('#BROKER_disp').val(''); });
+    });
+    // Destination (VB6 txtDESTI_TO, "JST" only).
+    $('#DEST_TO').on('click focus', function () {
+        if (headerLocked() || !IS_JST) return;
+        openLookup('dest', $(this), function (d) { $('#DEST_TO_disp').val(d.NAME || ''); }, function () { $('#DEST_TO_disp').val(''); });
+    });
+    function setPicked($orig, v) {
+        $orig.val(v);
+        var $vis = visibleInput($orig);
+        if ($vis.length) { $vis.val(v); $vis.data('value', v); }
+    }
+
+    // ---------------------------------------------------------------- Garden Invoice List popup
+    var stockRows = [], stockReq = 0;
+
+    function initStockFilter($orig, cfg) {
+        if ($orig.hasClass('inputpicker-original')) return;
+        var opts = pickerOptions(cfg);
+        opts.selectMode = 'empty';
+        $orig.inputpicker(opts);
+        visibleInput($orig).on('input', function () {
+            if (!$(this).val() && $orig.val()) { $orig.val(''); $(this).data('value', ''); }
+        });
+    }
+
+    // VB6 Command4_Click (the grid's Inv No. button): "JST" opens on the party's offered lots;
+    // elsewhere the Refresh list (VB6's offered-lots query there has no stock column).
+    function openStock() {
+        if (IS_VIEW) return;
+        if (rows.length >= MAX_LINES) { showAlert('A sauda can hold at most ' + MAX_LINES + ' lines.'); return; }
+        $('#stockFind').val('');
+        $('#pickerOverlay, #stockPicker').fadeIn(120, function () {
+            initStockFilter($('#stockGardenFilter'), LOOKUPS.garden);
+            initStockFilter($('#stockMarkFilter'), LOOKUPS.mark);
+            initStockFilter($('#stockCatFilter'), LOOKUPS.category);
+        });
+        loadStock(IS_JST ? 'offer' : 'stock');
+    }
+    function closeStock() { $('.inputpicker-wrapped-list').hide(); $('#pickerOverlay, #stockPicker').fadeOut(120); }
+
+    function loadStock(source) {
+        var reqId = ++stockReq;
+        $('.inputpicker-wrapped-list').hide();
+        stockRows = [];
+        $('#stockCount').text('');
+        $('#stockSource').text(source === 'offer' ? 'Showing the Party\'s offered lots -- Refresh lists all stock.' : '');
+        $('#stockBody').html('<p class="picker-empty">Loading...</p>');
+        $.getJSON(URL.stock, {
+            unit: UNIT,
+            party: $('#PCD').val() || '',
+            saleType: $('#SALE_TYPE').val() || '',
+            source: source,
+            mark: $('#stockMarkFilter').val(),
+            garden: $('#stockGardenFilter').val(),
+            category: $('#stockCatFilter').val(),
+            fromDate: $('#stockFrom').val(),
+            toDate: $('#stockTo').val()
+        }).done(function (data) {
+            if (reqId !== stockReq) return;
+            var have = {};
+            rows.forEach(function (r) { have[lineKey(r)] = true; });
+            stockRows = (data || []).filter(function (d) { return !have[lineKey(d)]; })
+                                    .map(function (d, i) { d._i = i; d._sel = false; return d; });
+            renderStock();
+        }).fail(function (x) {
+            if (reqId !== stockReq) return;
+            $('#stockBody').html('<p class="picker-empty">Could not load the stock. Click Refresh to try again.</p>');
+            failMsg(x);
+        });
+    }
+
+    // VB6 TDBGrid1 columns.
+    var STOCK_COLS = [['MARK_NAME', 'Mark'], ['INVNO', 'Inv No.'], ['GRADE', 'Grade Code'], ['PACK_DATE', 'Pack Date', 'date'], ['GRADE_NAME', 'Grade'],
+                      ['CHESTSLF', 'Start No.'], ['CHESTSLT', 'End No.'], ['CATEGORY', 'Category'], ['SEASON', 'Crop Yr.'], ['BAG_CHEST', 'Bags', 'cnt'],
+                      ['NET_WT', 'Net.Wt.', 'num'], ['TNET_WT', 'Total Nt.Wt.', 'num'], ['TGROSS_WT', 'Total Gr. Wt.', 'num'], ['DESTINATION', 'Destination'],
+                      ['WAREHOUSE_NAME', 'Warehouse'], ['AWR_NO', 'AWR No'], ['AWR_DATE', 'AWR Date', 'date'], ['SALE_CENTRE_NAME', 'Sale Centre']];
+    function isNumKind(k) { return k === 'num' || k === 'cnt'; }
+    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function cell(v, kind) { return '<td' + (isNumKind(kind) ? ' class="num"' : '') + '>' + esc(cellText(v, kind)) + '</td>'; }
+    function stockText(d) {
+        return STOCK_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.MARK || '']).join(' ').toUpperCase();
+    }
+    function shownStock() {
+        var term = $.trim($('#stockFind').val()).toUpperCase();
+        return stockRows.filter(function (d) { return !term || stockText(d).indexOf(term) >= 0; });
+    }
+    function renderStock() {
+        var shown = shownStock();
+        var html = '<table><thead><tr><th style="width:30px;">Tag</th>' +
+            STOCK_COLS.map(function (c) { return '<th' + (isNumKind(c[2]) ? ' class="num"' : '') + '>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>';
+        shown.forEach(function (d) {
+            html += '<tr data-i="' + d._i + '"><td><input type="checkbox" class="stockChk"' + (d._sel ? ' checked' : '') + ' /></td>' +
+                STOCK_COLS.map(function (c) { return cell(d[c[0]], c[2]); }).join('') + '</tr>';
+        });
+        html += '</tbody></table>';
+        if (!stockRows.length) html += '<p class="picker-empty">No garden invoice with stock for the selected filters.</p>';
+        else if (!shown.length) html += '<p class="picker-empty">No invoice matches the search.</p>';
+        $('#stockBody').html(html);
+        $('#stockCount').text(stockRows.length ? shown.length + ' of ' + stockRows.length + ' invoices' : '');
+    }
+    function stockAt(i) { for (var k = 0; k < stockRows.length; k++) { if (stockRows[k]._i == i) return stockRows[k]; } return null; }
+
+    $('#stockBody').on('click', 'tr[data-i]', function (e) {
+        var d = stockAt($(this).data('i')); if (!d) return;
+        var $chk = $(this).find('.stockChk');
+        if (!$(e.target).is('.stockChk')) $chk.prop('checked', !$chk.is(':checked'));
+        d._sel = $chk.is(':checked');
+    });
+    $('#stockFind').on('input', renderStock);
+    // VB6 txtInvNo: Enter tags the lot whose Inv No was typed.
+    $('#stockFind').on('keydown', function (e) {
+        if (e.which !== 13) return;
+        e.preventDefault();
+        var term = $.trim(this.value).toUpperCase();
+        if (!term) return;
+        var hit = stockRows.filter(function (d) { return String(d.INVNO || '').toUpperCase() === term; });
+        if (!hit.length) { showAlert('Garden InvNo Not Found'); return; }
+        hit.forEach(function (d) { d._sel = true; });
+        this.value = '';
+        renderStock();
+    });
+    $('#btnStockFilter').on('click', function () { loadStock('stock'); });     // VB6 Command3_Click "Refresh"
+    $('#btnStockSelectAll').on('click', function () { shownStock().forEach(function (d) { d._sel = true; }); renderStock(); });
+    $('#btnStockDeselectAll').on('click', function () { shownStock().forEach(function (d) { d._sel = false; }); renderStock(); });
+    $('#stockClose, #btnStockCancel').on('click', closeStock);
+    $('#btnSelectStock').on('click', openStock);
+
+    // VB6 Command6_Click "OK": one grid line per tagged lot -- Bags / Inv. Kgs / Total Gross from the list,
+    // Kgs = Inv. Kgs - Sample, Amount = Kgs x Rate; a blank Sale Centre becomes 0009.
+    $('#btnStockOk').on('click', function () {
+        var picked = stockRows.filter(function (d) { return d._sel; });
+        if (!picked.length) { showAlert('Tag at least one invoice.'); return; }
+        if (rows.length + picked.length > MAX_LINES) { showAlert('A sauda can hold at most ' + MAX_LINES + ' lines.'); return; }
+        picked.forEach(function (d) {
+            var r = newRow({
+                MARK: d.MARK, MARK_NAME: d.MARK_NAME, INVNO: d.INVNO, PACK_DATE: d.PACK_DATE, GRADE: d.GRADE, GRADE_NAME: d.GRADE_NAME,
+                CAT: d.CAT, CATEGORY: d.CATEGORY, BAG_CHEST: d.BAG_CHEST, CHESTSLF: d.CHESTSLF, CHESTSLT: d.CHESTSLT, NET_WT: d.NET_WT,
+                GROSS: num(d.GROSS), TNET_WT: d.TNET_WT, TGROSS_WT: d.TGROSS_WT, SAMPLE_QTY: 0, RATE: 0,
+                WAREHOUSE: d.WAREHOUSE, WAREHOUSE_NAME: d.WAREHOUSE_NAME, SALE_CENTRE: d.SALE_CENTRE || '0009', SALE_CENTRE_NAME: d.SALE_CENTRE_NAME
+            });
+            r.ORDER_QTY = r2(r.TNET_WT - r.SAMPLE_QTY);
+            r.AMT = r2(r.ORDER_QTY * r.RATE);
+            rows.push(r);
+        });
+        closeStock();
+        renderGrid();
+        $('#gridBody input.f-RATE:not([readonly])').filter(function () { return !num(this.value); }).first().focus();
+    });
+
+    // ---------------------------------------------------------------- save
+    function payload() {
+        return {
+            UNIT: $('#UNIT_disp').val(), IsNew: !IS_EDIT,
+            DOCNO: $('#DOCNO').val() || null, DOCDT: $('#DOCDT').val() || null,
+            SALE_TYPE: $('#SALE_TYPE').val(), PCD: $('#PCD').val() || null, BROKER: $('#BROKER').val() || null,
+            DEST_TO: IS_JST ? ($('#DEST_TO').val() || null) : null,
+            LINES: rows.map(function (r) {
+                return {
+                    MARK: r.MARK, INVNO: r.INVNO, PACK_DATE: r.PACK_DATE || null, GRADE: r.GRADE,
+                    BAG_CHEST: r2(r.BAG_CHEST), CHESTSLF: num(r.CHESTSLF), CHESTSLT: num(r.CHESTSLT), NET_WT: r2(r.NET_WT),
+                    TNET_WT: r2(r.TNET_WT), TGROSS_WT: r2(r.TGROSS_WT), ORDER_QTY: r2(r.ORDER_QTY), SAMPLE_QTY: r2(r.SAMPLE_QTY),
+                    RATE: r2(r.RATE), AMT: r2(r.AMT), SALE_CENTRE: r.SALE_CENTRE, WAREHOUSE: r.WAREHOUSE
+                };
+            })
+        };
+    }
+
+    // VB6 txtDocdt_Validate + Command1_Click (same order and messages).
+    function validate() {
+        var d = $('#DOCDT').val();
+        if (!d) return 'INVALID DATE !';
+        if (!IS_EDIT) {
+            if (d > TODAY) return 'Can not enter future date ' + dmy(d);
+            if (d < FY_START || d > FY_END) return 'Date not between financial Year';
+            if (d < ($('#DOCDT').attr('min') || '') || d > ($('#DOCDT').attr('max') || '9999')) {
+                return 'Date must be between ' + dmy($('#DOCDT').attr('min')) + ' and ' + dmy($('#DOCDT').attr('max')) + '.';
+            }
+        }
+        if (LOCK_DATE && d <= LOCK_DATE) return 'Transaction Entry/Editing Locked upto ' + dmy(LOCK_DATE);
+        if (IS_JST) {
+            if (!$('#PCD').val() && !$('#BROKER').val()) return 'Party & Broker Both cannot be blank';
+        } else if (!$('#PCD').val()) return 'Party cannot be blank';
+        if (!$('#SALE_TYPE').val()) return 'Sale Type cannot be blank';
+        if (saleTypeFirst() === '1' && !$('#BROKER').val() && !IS_JST) return 'Broker cannot be blank';
+        if (!rows.length) return 'No Record in Datagrid to Save';
+        if (rows.length > MAX_LINES) return 'A sauda can hold at most ' + MAX_LINES + ' lines.';
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i], at = 'Line ' + r.SRLNO + ': ';
+            if (!r.INVNO) return i === 0 ? 'Without Invoice Detail, Record Can Not be Saved.' : at + 'select the Invoice.';
+            if (!IS_JST && !(r.BAG_CHEST > 0)) return at + 'Enter Bag  !';
+            if (!(r.RATE > 0)) return at + 'Enter Rate !';
+            if (!(r.ORDER_QTY > 0)) return at + 'Enter Order Kgs !';
+            if (r.AMT > MAX.AMT) return at + 'Amount is too large.';
+        }
+        return null;
+    }
+
+    var saving = false;
+    $('#btnSave').on('click', function () {
+        if (IS_VIEW || saving) return;
+        $('#gridBody input:focus').trigger('change');
+        var err = validate();
+        if (err) { showAlert(err); return; }
+        showConfirm('Are you sure?', function () {
+            saving = true;
+            $('#btnSave').prop('disabled', true);
+            $.ajax({ url: URL.save, type: 'POST', contentType: 'application/json', data: JSON.stringify(payload()) })
+                .done(function (resp) {
+                    if (resp && resp.success) {
+                        var nos = resp.data && resp.data.docnos ? resp.data.docnos : [];
+                        showAlert('Saved successfully.' + (nos.length ? '\n' + 'Sauda No. ' + nos.join(', ') : ''), function () { window.location.href = URL.list; });
+                    } else {
+                        showAlert((resp && resp.message) || 'Save failed.');
+                    }
+                })
+                .fail(function (x) { failMsg(x, 'Save failed.'); })
+                .always(function () { saving = false; $('#btnSave').prop('disabled', false); });
+        });
+    });
+
+    // ---------------------------------------------------------------- init
+    rows = (DOC.lines || []).map(function (l) { return newRow(l); });
+    renderGrid();
+    applyModeUi();
+    $(window).on('beforeunload pagehide', function () { $('.inputpicker-wrapped-list').hide(); });
+})();
+</script>
+@Html.Partial("_RecordLock")
+</body>
+</html>

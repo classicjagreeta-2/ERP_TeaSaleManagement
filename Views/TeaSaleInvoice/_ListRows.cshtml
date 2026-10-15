@@ -1,0 +1,82 @@
+@* Table rows for the Private Sale / Auction Sale invoice lists. Rendered by Index.cshtml for the first
+   chunk and returned on its own (Request.IsAjaxRequest) for every further chunk the list's infinite
+   scroll asks for -- see Scripts/list-infinite-scroll.js and TeaSaleInvoiceControllerBase.Index.
+   ViewBag.RowOffset keeps the "+" expand ids unique across chunks; ViewBag.Ctl is the screen's
+   controller (PrivateSaleInvoice / AuctionSaleInvoice). *@
+@model List<TeaSaleManagement.Controllers.TeaSaleInvoiceRow>
+@{
+    var rowIndex = (int?)ViewBag.RowOffset ?? 0;
+    string ctl = (string)ViewBag.Ctl;
+    // The Tax Invoice No is a link into View mode only for users holding the View right (AEDV) -- UX
+    // only: TeaSaleInvoiceControllerBase.InsertOrUpdate re-checks the right server-side.
+    var canView = (ViewBag.Permission as TeaSaleManagement.Helpers.AEDV)?.View ?? false;
+}
+@if (Model != null)
+{
+    foreach (var row in Model)
+    {
+        rowIndex++;
+        var detailId = "rowDetail" + rowIndex;
+        var dt = row.DESP_DATE?.ToString("yyyy-MM-dd");
+        var guard = !string.IsNullOrEmpty(row.IRN) ? "IRN" : row.PRNT_TAG == "Y" ? "PRN" : "";
+        <tr class="data-row"@TeaSaleManagement.Utility.RecordLock.RowAttrs(ViewBag.Locks, row.UNIT, row.DESP_NO, row.DESP_DATE)>
+            <td>
+                <input type="checkbox" class="row-check" value="@row.DESP_NO" data-docdt="@dt" data-unit="@row.UNIT" data-guard="@guard" />
+            </td>
+            <td style="text-align:center;">
+                <i class="fa fa-plus row-expand-btn" data-target="@detailId" title="Show lines" style="cursor:pointer;"></i>
+            </td>
+            <td title="@row.UNIT">@TeaSaleManagement.UnitScope.Name(row.UNIT, ViewBag.UnitList as List<TeaSaleManagement.Models.PT.UnitOption>)</td>
+            <td>
+                @if (canView)
+                {
+                    <a href="@Url.Action("InsertOrUpdate", ctl, new { unit = row.UNIT, docno = row.DESP_NO, docdt = dt, view = true })">@row.DESP_NO</a>
+                }
+                else
+                {
+                    @row.DESP_NO
+                }
+            </td>
+            <td>@(row.DESP_DATE?.ToString("dd/MM/yyyy"))</td>
+            <td title="@row.SALE_TYPE">@(string.IsNullOrWhiteSpace(row.SALE_TYPE_NAME) ? row.SALE_TYPE : row.SALE_TYPE_NAME)</td>
+            <td>@row.BILL_TO_PARTY - @row.BILL_TO_NAME</td>
+            <td>@row.PCODE - @row.SHIP_TO_NAME</td>
+            <td>@row.SALE_CENTRE_NAME</td>
+            <td title="@row.BROK_CODE">@row.BROKER_NAME</td>
+            <td>@row.SALE_NO</td>
+            <td class="num">@((row.BAGS ?? 0).ToString("0.##"))</td>
+            <td class="num">@((row.BILL_QTY ?? 0).ToString("0.000"))</td>
+            <td>@row.JV_DOCNO</td>
+            <td class="num">@((row.TOTAL_AMT ?? 0).ToString("0.00"))</td>
+        </tr>
+        <tr class="row-detail" id="@detailId" style="display:none;" data-docno="@row.DESP_NO" data-docdt="@dt" data-unit="@row.UNIT">
+            <td colspan="15" style="background:#f8f9fc;padding:10px 12px;">
+                <div style="overflow-x:auto;">
+                    <table class="detail-sub-table">
+                        <thead>
+                            <tr>
+                                <th style="width:34px;">Sl</th>
+                                <th>Mark</th>
+                                <th>Inv No</th>
+                                <th>Pack Date</th>
+                                <th>Grade</th>
+                                <th class="num">Bags</th>
+                                <th class="num">Inv. Kgs</th>
+                                <th class="num">Bill Qty</th>
+                                <th class="num">Rate</th>
+                                <th class="num">Basic Amt</th>
+                                <th class="num">Discount</th>
+                                <th class="num">GST</th>
+                                <th class="num">TCS</th>
+                                <th class="num">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="detail-items-body">
+                            <tr><td colspan="14" style="text-align:center;color:#666;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    }
+}

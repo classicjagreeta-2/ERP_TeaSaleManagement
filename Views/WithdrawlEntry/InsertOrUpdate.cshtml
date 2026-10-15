@@ -1,0 +1,871 @@
+﻿@{
+    string screenName = (string)ViewBag.ScreenName;
+    ViewBag.Title = screenName;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    bool isEdit = ViewBag.IsEdit ?? false;
+    bool isView = ViewBag.IsView ?? false;
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <link href="~/libraries/assetspo/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order.css">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order-responsive.css">
+    <!-- Root UI lookup convention (CLAUDE.md "Lookup pickers"): Auction No / Sale Centre / Broker / Mark /
+         Category are jquery.inputpicker dropdowns. -->
+    <link href="~/Controllers/Test/assets/css/jquery.inputpicker.css" rel="stylesheet" />
+    <script src="~/libraries/assetspo/js/custom.js"></script>
+    <script src="~/Controllers/Test/assets/js/jquery.inputpicker.js"></script>
+    <style>
+        .inputpicker-wrapped-list .inputpicker-active td,
+        .inputpicker-wrapped-list .inputpicker-active th { background: #404e68 !important; color: #fff !important; font-weight: bold; }
+        .inputpicker-wrapped-list { min-width: max-content !important; }
+        .inputpicker-wrapped-list table { width: max-content !important; }
+        input[readonly], input:disabled, select:disabled { background-color: #f3f4f7; color: #555; }
+        .accordion-container.compact-accordion { height: auto; overflow-y: visible; }
+        .accordion-container.main-accordion { height: auto; overflow-y: visible; }
+        #gridTable th, #gridTable td { white-space: nowrap; }
+        #gridTable td input { min-width: 60px; width: 90px; }
+        #gridTable td input[type="checkbox"] { min-width: 0; width: auto; }
+        #gridTable td input.f-lot { width: 80px; }
+        #gridTable td input.f-outlot { width: 130px; }
+        #gridTable td input.f-season { width: 60px; min-width: 50px; }
+        #gridTable td input.f-remarks { width: 200px; }
+        #gridTable td.num, #gridTable th.num, #gridTable tfoot td { text-align: right; }
+        input.num { text-align: right; }
+        #gridTable td input[readonly] { cursor: default; }
+        .total-box { font-weight: bold; text-align: right; }
+        .with-from { display: flex; gap: 18px; flex-wrap: wrap; padding-top: 6px; }
+        .with-from label { font-weight: normal; margin: 0; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        .with-from input[type="radio"] { width: auto; margin: 0; }
+        /* Pickers are as wide as their list needs (like Warehouse AWR's despatch picker), not fixed. */
+        .popup-box.picker-box { display: none; width: fit-content; min-width: 560px; max-width: min(1080px, 92vw); padding: 14px 16px; }
+        .popup-box.picker-box h2 { font-size: 16px; }
+        .popup-box.picker-box.wide { width: fit-content; }
+        .popup-box .picker-body { max-height: 52vh; overflow: auto; margin-top: 8px; }
+        .popup-box .picker-body table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+        .popup-box .picker-body th { text-align: left; background: #f4f6fa; padding: 6px 8px; border-bottom: 2px solid #ddd; color: #333; position: sticky; top: 0; }
+        .popup-box .picker-body th.num, .popup-box .picker-body td.num { text-align: right; }
+        .popup-box .picker-body td { padding: 5px 8px; border-bottom: 1px solid #eee; cursor: pointer; color: #222; white-space: nowrap; }
+        .popup-box .picker-body tr:hover td, .popup-box .picker-body tr.is-active td { background: #eef3ff; }
+        .popup-box .picker-empty { margin: 10px 4px 2px; font-size: 12px; color: #666; }
+        .stock-filters { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+        .stock-filters label { margin: 0; font-weight: normal; font-size: 12px; }
+        .popup-box.alert-box { width: 440px; max-width: 92vw; display: none; }
+        .popup-box.alert-box .alert-message { max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+        .popup-box.alert-box .alert-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .action-btns li a.is-disabled, .action-btns li button:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div class="general-container">
+        <div class="purchase-details">
+            <div class="header-content">
+                <div class="action-btns">
+                    <ul>
+                        <li><a href="@Url.Action("Index", "WithdrawlEntry")"><i class="fa fa-arrow-left"></i> Back</a></li>
+                        <li><button type="button" id="btnSave" @(isView ? "disabled" : "")><i class="fa fa-floppy-o"></i> Save</button></li>
+                        <li><a href="@Url.Action("Index", "WithdrawlEntry")"><i class="fa fa-times"></i> Cancel</a></li>
+                        @* VB6 cmdMail: enabled in View mode only. *@
+                        @if (isView)
+                        {
+                            <li><a href="javascript:void(0)" id="btnMail"><i class="fa fa-envelope-o"></i> Send Mail</a></li>
+                        }
+                        <li style="margin-left:auto">
+                            <label class="btn btn-inverse pull-right" style="margin:0; border:none;">
+                                Status : <span id="statusText">@(isView ? "View" : isEdit ? "Edit" : "Add")</span>
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+                <div class="header-details">
+                    <div class="left">
+                        <div class="order-code">
+                            <div class="txt"><div class="title-heading">@screenName</div></div>
+                        </div>
+                        <div class="title-heading">WITHDRAWL NO. : <span id="hdrDocNo"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container compact-accordion">
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Unit</span></div>
+                    <div class="accordion-body">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Unit</label>
+                                @* #UNIT_disp keeps the code that is saved; #UNIT_name shows the unit's name. *@
+                                <input type="hidden" id="UNIT_disp" />
+                                <input type="text" id="UNIT_name" readonly />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container main-accordion">
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Header</span></div>
+                    <div class="accordion-body">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Withdrawl No</label>
+                                <input type="text" id="DOCNO" readonly placeholder="(auto)" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Date <span>(*)</span></label>
+                                <input type="date" id="DOCDT" min="@ViewBag.MinDocDate" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Auction No <span>(*)</span></label>
+                                @* inputpicker dropdown; the saved value is the picked Sale No, "<sale>/<year>" *@
+                                <input type="text" id="SALE_NO" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sale Centre <span>(*)</span></label>
+                                <input type="text" id="SALE_CENTRE" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sale Centre Name</label>
+                                <input type="text" id="SALE_CENTRE_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Broker <span>(*)</span></label>
+                                <input type="text" id="BROKER" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Broker Name</label>
+                                <input type="text" id="BROKER_disp" readonly />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Records From</label>
+                                @* VB6 Option1(0..2) -> WITH_FROM '0' / '1' / '2'; "Catalouge" exists at location JST only. *@
+                                <div class="with-from">
+                                    <label><input type="radio" name="WITH_FROM" value="0" /> Records From Out Lot</label>
+                                    <label><input type="radio" name="WITH_FROM" value="1" /> Records From Printing</label>
+                                    <label id="withFromCatLabel" style="display:none;"><input type="radio" name="WITH_FROM" value="2" /> Records From Catalouge</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Mark</label>
+                                @* VB6 txtMark / txtCategory: the stock list's filters (Category is required for it). *@
+                                <input type="text" id="MARK" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Mark Name</label>
+                                <input type="text" id="MARK_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Category</label>
+                                <input type="text" id="CAT" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Category Name</label>
+                                <input type="text" id="CAT_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Total Bags</label>
+                                <input type="text" id="TOTAL_BAGS" class="num total-box" readonly value="0" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Total Kgs</label>
+                                <input type="text" id="TOTAL_KGS" class="num total-box" readonly value="0.00" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Lot Details</span></div>
+                    <div class="accordion-body active" style="display:block;">
+                        <div class="action-btns">
+                            <ul>
+                                <li><a href="javascript:void(0)" id="btnSelectStock"><i class="fa fa-search"></i> Select Stock</a></li>
+                                <li><a href="javascript:void(0)" id="btnRemoveRows"><i class="fa fa-trash-o"></i> Remove Selected</a></li>
+                            </ul>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="border" id="gridTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:26px;"><input type="checkbox" id="chkAll" /></th>
+                                        <th style="width:30px;">Sl.</th>
+                                        <th>LotNo</th>
+                                        <th>Mark</th>
+                                        <th>Inv No.</th>
+                                        <th>Pack Date</th>
+                                        <th>Grade Code</th>
+                                        <th>Grade</th>
+                                        <th>Category</th>
+                                        <th class="num">Bags <span style="color:red;">(*)</span></th>
+                                        <th class="num">Net.Wt.</th>
+                                        <th class="num">Inv. Kgs.</th>
+                                        <th class="num">Total Gross Wt.</th>
+                                        <th class="num">Kgs</th>
+                                        <th class="num">Sample</th>
+                                        <th class="num">Other</th>
+                                        <th>Out Lot</th>
+                                        <th>Season From</th>
+                                        <th>Season To</th>
+                                        <th>Remarks</th>
+                                        <th>WDO No</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gridBody"></tbody>
+                                <tfoot>
+                                    <tr class="total">
+                                        <td colspan="9" style="text-align:right;">Total</td>
+                                        <td id="ftBags"></td>
+                                        <td></td>
+                                        <td id="ftTnet"></td>
+                                        <td id="ftGross"></td>
+                                        <td id="ftKgs"></td>
+                                        <td id="ftSam"></td>
+                                        <td id="ftOth"></td>
+                                        <td colspan="5"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="pickerOverlay"></div>
+
+    <!-- VB6 "GardenInv_List" frame: the lots available for this sale from the chosen "Records From"
+         (bulk multi-row selection -- a composite picker, not an inputpicker). -->
+    <div class="popup-box picker-box wide" id="stockPicker">
+        <div class="popup-header">
+            <h2>Select Stock (Garden Invoice List)</h2>
+            <button type="button" class="close-btn" id="stockClose">X</button>
+        </div>
+        <div class="stock-filters">
+            <label>Inv No.</label>
+            <input type="text" id="stockFind" placeholder="Inv No. (Enter tags it) / find (any column)..." style="width:280px;" autocomplete="off" />
+            <button type="button" id="btnStockRefresh" class="btn-blue" style="width:auto;padding:5px 14px;">Refresh</button>
+            <button type="button" id="btnStockSelectAll" class="btn-white" style="width:auto;padding:5px 14px;">Select All</button>
+            <button type="button" id="btnStockDeselectAll" class="btn-white" style="width:auto;padding:5px 14px;">De-Select All</button>
+            <span id="stockCount" style="font-size:12px;color:#666;"></span>
+        </div>
+        <div class="picker-body" id="stockBody"></div>
+        <div style="text-align:right;padding-top:10px;">
+            <button type="button" class="btn-blue" id="btnStockOk" style="width:auto;padding:5px 16px;">OK</button>
+            <button type="button" class="btn-white" id="btnStockCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="appAlertOverlay"></div>
+    <div class="popup-box alert-box" id="appAlertBox">
+        <div class="popup-header"><h2 id="appAlertTitle">Notice</h2></div>
+        <div class="alert-message" id="appAlertMessage"></div>
+        <div class="alert-actions">
+            <button type="button" class="btn-white" id="appAlertCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+            <button type="button" class="btn-blue" id="appAlertOk" style="width:auto;padding:5px 16px;">OK</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    var IS_EDIT = @(isEdit ? "true" : "false");
+    var IS_VIEW = @(isView ? "true" : "false");
+    var DOC = @Html.Raw(ViewBag.DocJson ?? "{}");
+    var H = DOC.head || {};
+    var URL = {
+        saleNo: '@Url.Action("GetSaleNo", "WithdrawlEntry")',
+        centre: '@Url.Action("GetSalesCentre", "WithdrawlEntry")',
+        broker: '@Url.Action("GetBroker", "WithdrawlEntry")',
+        category: '@Url.Action("GetCategory", "WithdrawlEntry")',
+        mark: '@Url.Action("GetMark", "WithdrawlEntry")',
+        stock: '@Url.Action("GetAvailableStock", "WithdrawlEntry")',
+        catQty: '@Url.Action("GetCatalogueQty", "WithdrawlEntry")',
+        mail: '@Url.Action("GetMailText", "WithdrawlEntry")',
+        save: '@Url.Action("Save", "WithdrawlEntry")',
+        list: '@Url.Action("Index", "WithdrawlEntry")'
+    };
+    var MAX_LINES = 998;                // VB6 detailno = 999
+    var MAX_NUM = 9999999999;
+
+    // ---------------------------------------------------------------- helpers
+    $('#pickerOverlay, #stockPicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
+    function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
+    function rn(v, d) { v = num(v); var p = Math.pow(10, d), s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * p + 1e-7) / p; }
+    function r2(v) { return rn(v, 2); }
+    function r3(v) { return rn(v, 3); }
+    function f2(v) { return r2(v).toFixed(2); }
+    // Kgs: 2 decimals, or 3 when the value has a third (VB6 rounds the JST withdrawal to 3).
+    function fq(v) { v = r3(v); return Math.abs(v * 100 - Math.round(v * 100)) > 1e-6 ? v.toFixed(3) : v.toFixed(2); }
+    function fc(v) { return String(r3(v)); }            // bags: no forced decimals
+    function iso(d) { return d ? String(d).substring(0, 10) : ''; }
+    function dmy(d) { d = iso(d); return d ? d.substring(8, 10) + '/' + d.substring(5, 7) + '/' + d.substring(0, 4) : ''; }
+    function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
+
+    function closeAlert() { $('#appAlertOverlay, #appAlertBox').fadeOut(120); }
+    function showAlert(message, onOk) { AppMsg.show(message, onOk); }
+    function showConfirm(message, onYes, onNo) {
+        $('#appAlertTitle').text('Confirm');
+        $('#appAlertMessage').text(message || '');
+        $('#appAlertCancel').show().off('click').on('click', function () { closeAlert(); if (onNo) onNo(); });
+        $('#appAlertOk').off('click').on('click', function () { closeAlert(); onYes(); });
+        $('#appAlertOverlay, #appAlertBox').fadeIn(120);
+    }
+    function failMsg(x, fallback) {
+        if (x && x.status === 440) {
+            showAlert((x.responseJSON && x.responseJSON.message) || 'Your session has expired. Please log in again.', function () { window.location.reload(); });
+            return;
+        }
+        if (x && x.statusText === 'abort') return;
+        showAlert((x && x.responseJSON && x.responseJSON.message) || fallback || 'Could not load data. Please try again.');
+    }
+
+    // Numeric-only inputs: digits and one decimal point, at most 3 decimals, right aligned.
+    function sanitizeNum(el) {
+        var v = el.value, clean = v.replace(/[^0-9.]/g, '');
+        var dot = clean.indexOf('.');
+        if (dot >= 0) {
+            var frac = clean.substring(dot + 1).replace(/\./g, '');
+            clean = clean.substring(0, dot + 1) + frac.substring(0, 3);
+        }
+        if (clean !== v) el.value = clean;
+    }
+    $(document).on('keypress', 'input.num:not([readonly])', function (e) {
+        var ch = String.fromCharCode(e.which);
+        if (e.which < 32) return;
+        if (!/[0-9.]/.test(ch) || (ch === '.' && this.value.indexOf('.') >= 0 && this.selectionStart === this.selectionEnd)) e.preventDefault();
+    });
+    $(document).on('input paste', 'input.num:not([readonly])', function () { var el = this; setTimeout(function () { sanitizeNum(el); }, 0); });
+
+    // ---------------------------------------------------------------- state
+    var FY_START = iso(H.FY_START), FY_END = iso(H.FY_END);
+    var TODAY = iso(H.TODAY) || new Date().toISOString().substring(0, 10);
+    // The Unit is locked: a NEW withdrawal carries the one picked on the list's "New" row (server-checked
+    // against the user's units), an edit the withdrawal's own. UNIT is what Save posts -- see payload().
+    var UNIT = H.UNIT || '';
+    // VB6 loca1 = "JST": "Records From Catalouge", editable Inv. Kgs / Kgs and the catalogue-qty Kgs.
+    var IS_JST = !!H.IS_JST;
+    // Doc Date lower bound from the AEDV back-date window (ViewBag.MinDocDate = later of the FY start
+    // and today - Aday); Save re-checks it server-side.
+    var MIN_DOC = '@ViewBag.MinDocDate';
+    var rows = [], seq = 0, pending = 0;
+
+    // ---------------------------------------------------------------- header
+    $('#UNIT_disp').val(UNIT);                                        // the code that is saved
+    $('#UNIT_name').val(H.UNIT_NAME || UNIT).attr('title', UNIT);     // the Unit's description
+    $('#DOCNO').val(H.DOCNO || '');
+    $('#hdrDocNo').text(H.DOCNO || '');
+    $('#SALE_NO').val(H.SALE_NO || '');
+    $('#SALE_CENTRE').val(H.SALE_CENTRE || ''); $('#SALE_CENTRE_disp').val(H.SALE_CENTRE_NAME || '');
+    $('#BROKER').val(H.BROKER || ''); $('#BROKER_disp').val(H.BROKER_NAME || '');
+    // VB6 mstrfsh: Mark / Category show the first line's.
+    $('#MARK').val(H.MARK || ''); $('#MARK_disp').val(H.MARK_NAME || '');
+    $('#CAT').val(H.CAT || ''); $('#CAT_disp').val(H.CATEGORY_NAME || '');
+    // VB6 Form_Load: Option1(2) "Records From Catalouge" is visible at location JST only.
+    $('#withFromCatLabel').toggle(IS_JST || H.WITH_FROM === '2');
+    $('input[name="WITH_FROM"][value="' + (H.WITH_FROM || '0') + '"]').prop('checked', true);
+    function withFrom() { return $('input[name="WITH_FROM"]:checked').val() || '0'; }
+    // Lot No is required for an Out Lot / Catalouge withdrawal (VB6 Command1_Click).
+    function lotNoRequired() { var w = withFrom(); return w === '0' || w === '2'; }
+
+    if (IS_EDIT) {
+        // Doc Date is part of the withdrawal's key (Unit + Withdrawl No + Date): fixed once saved.
+        $('#DOCDT').val(iso(H.DOCDT)).prop('disabled', true);
+    } else {
+        // VB6 blankrec: today, or the year end once the year is over; never a future date.
+        var maxDt = TODAY < FY_END ? TODAY : FY_END;
+        var minDt = FY_START;
+        if (MIN_DOC && MIN_DOC > minDt) minDt = MIN_DOC;
+        $('#DOCDT').attr('min', minDt).attr('max', maxDt).val(maxDt < minDt ? minDt : maxDt);
+    }
+
+    function applyModeUi() {
+        $('#SALE_NO, #SALE_CENTRE, #BROKER, #MARK, #CAT').prop('readonly', IS_VIEW).attr('placeholder', IS_VIEW ? '' : 'Click to select');
+        $('#btnSelectStock, #btnRemoveRows').toggleClass('is-disabled', IS_VIEW);
+        if (IS_VIEW) $('input, select, textarea').prop('disabled', true);
+    }
+
+    // ---------------------------------------------------------------- lines
+    function lineKey(r) { return [r.INVNO || '', iso(r.PACK_DATE), r.GRADE || '', r.MARK || ''].join('|').toUpperCase(); }
+
+    function newRow(src) {
+        var r = $.extend({
+            LOTNO: '', MARK: '', MARK_NAME: '', INVNO: '', PACK_DATE: '', GRADE: '', GRADE_NAME: '', CAT: '', CATEGORY: '',
+            BAG_CHEST: 0, NET_WT: 0, GROSS: null, TNET_WT: 0, TGROSS_WT: 0, WITHDRAWL_QTY: 0, SAMPLE_QTY: 0, OTHER_QTY: 0,
+            OUT_LOTNO: '', SEASON_FROM: '', SEASON_TO: '', REMARKS: '', WDO_NO: '', CAT_QTY_BAG: 0
+        }, src || {});
+        ['LOTNO', 'MARK', 'MARK_NAME', 'INVNO', 'GRADE', 'GRADE_NAME', 'CAT', 'CATEGORY', 'OUT_LOTNO', 'SEASON_FROM', 'SEASON_TO', 'REMARKS', 'WDO_NO']
+            .forEach(function (k) { r[k] = r[k] || ''; });
+        r.PACK_DATE = iso(r.PACK_DATE);
+        ['BAG_CHEST', 'NET_WT', 'TNET_WT', 'TGROSS_WT', 'WITHDRAWL_QTY', 'SAMPLE_QTY', 'OTHER_QTY', 'CAT_QTY_BAG'].forEach(function (k) { r[k] = r3(r[k]); });
+        // Gross weight per bag: from the stock list, or worked back from a stored line.
+        if (r.GROSS == null) r.GROSS = r.BAG_CHEST > 0 ? num(r.TGROSS_WT) / r.BAG_CHEST : 0;
+        r._cid = ++seq;
+        return r;
+    }
+    function ro(editable) { return (IS_VIEW || !editable) ? ' readonly tabindex="-1"' : ''; }
+    function numInput(r, col, editable, fmt) {
+        return '<td class="num"><input type="text" inputmode="decimal" class="num f-' + col + '" data-col="' + col + '" value="' + fmt(r[col]) + '"' + ro(editable) + ' /></td>';
+    }
+    function textInput(r, col, cls, max) {
+        return '<td><input type="text" class="f-text ' + cls + '" data-col="' + col + '" maxlength="' + max + '" value="' + esc(r[col]) + '"' + ro(true) + ' /></td>';
+    }
+
+    function renderGrid() {
+        var $tb = $('#gridBody').empty();
+        rows.forEach(function (r, i) {
+            r.SRLNO = i + 1;
+            var tr = $('<tr data-cid="' + r._cid + '"></tr>');
+            tr.append('<td><input type="checkbox" class="rowChk" ' + (IS_VIEW ? 'disabled' : '') + ' /></td>');
+            tr.append('<td>' + r.SRLNO + '</td>');
+            // maxlength = T_WITHDRAWL.LOTNO VARCHAR2(8)
+            tr.append(textInput(r, 'LOTNO', 'f-lot', 8));
+            tr.append('<td title="' + esc(r.MARK) + '">' + esc(r.MARK_NAME || r.MARK) + '</td>');
+            tr.append('<td>' + esc(r.INVNO) + '</td>');
+            tr.append('<td>' + esc(dmy(r.PACK_DATE)) + '</td>');
+            tr.append('<td>' + esc(r.GRADE) + '</td>');
+            tr.append('<td>' + esc(r.GRADE_NAME) + '</td>');
+            tr.append('<td>' + esc(r.CATEGORY) + '</td>');
+            tr.append(numInput(r, 'BAG_CHEST', true, fc));
+            tr.append('<td class="num c-NET_WT">' + f2(r.NET_WT) + '</td>');
+            // VB6 Form_Load: Inv. Kgs and Kgs take the focus at location JST only.
+            tr.append(numInput(r, 'TNET_WT', IS_JST, f2));
+            tr.append('<td class="num c-TGROSS_WT">' + f2(r.TGROSS_WT) + '</td>');
+            tr.append(numInput(r, 'WITHDRAWL_QTY', IS_JST, fq));
+            tr.append(numInput(r, 'SAMPLE_QTY', true, f2));
+            tr.append(numInput(r, 'OTHER_QTY', true, f2));
+            // maxlength = T_WITHDRAWL.OUT_LOTNO VARCHAR2(30), SEASON_FROM / SEASON_TO VARCHAR2(4), REMARKS VARCHAR2(100)
+            tr.append(textInput(r, 'OUT_LOTNO', 'f-outlot', 30));
+            tr.append(textInput(r, 'SEASON_FROM', 'f-season', 4));
+            tr.append(textInput(r, 'SEASON_TO', 'f-season', 4));
+            tr.append(textInput(r, 'REMARKS', 'f-remarks', 100));
+            tr.append('<td title="' + esc(dmy(r.WDO_DT)) + '">' + esc(r.WDO_NO) + '</td>');
+            $tb.append(tr);
+        });
+        if (!rows.length) $tb.append('<tr><td colspan="21" style="text-align:center;color:#666;">Use "Select Stock" to pick the lots (Category is required).</td></tr>');
+        refreshTotals();
+    }
+
+    // VB6 grid footers: Bags, Inv. Kgs, Total Gross Wt, Kgs, Sample, Other.
+    function refreshTotals() {
+        var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0, WITHDRAWL_QTY: 0, SAMPLE_QTY: 0, OTHER_QTY: 0 };
+        rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
+        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f2(t.TNET_WT)); $('#ftGross').text(f2(t.TGROSS_WT));
+        $('#ftKgs').text(fq(t.WITHDRAWL_QTY)); $('#ftSam').text(f2(t.SAMPLE_QTY)); $('#ftOth').text(f2(t.OTHER_QTY));
+        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_KGS').val(fq(t.WITHDRAWL_QTY));
+    }
+
+    function findRow(cid) { return rows.find(function (r) { return r._cid == cid; }); }
+    function paintRow($tr, r) {
+        $tr.find('.c-NET_WT').text(f2(r.NET_WT));
+        $tr.find('.c-TGROSS_WT').text(f2(r.TGROSS_WT));
+        $tr.find('input.f-TNET_WT').val(f2(r.TNET_WT));
+        $tr.find('input.f-WITHDRAWL_QTY').val(fq(r.WITHDRAWL_QTY));
+    }
+
+    // VB6 DATAGRID1_BeforeColUpdate, column Bags: GetCatelogueQty re-reads the catalogue qty per bag,
+    // Inv. Kgs = Net Wt x Bags, Kgs = catalogue qty per bag x Bags at JST (when known), else
+    // Inv. Kgs - (Sample + Other). Total Gross Wt follows the bags too.
+    function recalcBags(r) {
+        r.TNET_WT = r2(num(r.NET_WT) * num(r.BAG_CHEST));
+        if (num(r.GROSS) > 0) r.TGROSS_WT = r2(num(r.GROSS) * num(r.BAG_CHEST));
+        if (num(r.CAT_QTY_BAG) > 0 && IS_JST) r.WITHDRAWL_QTY = r3(num(r.CAT_QTY_BAG) * num(r.BAG_CHEST));
+        else r.WITHDRAWL_QTY = r3(num(r.TNET_WT) - (num(r.SAMPLE_QTY) + num(r.OTHER_QTY)));
+    }
+    function afterBags($tr, r) {
+        pending++;
+        $.getJSON(URL.catQty, {
+            withFrom: withFrom(), saleNo: $('#SALE_NO').val(), saleCentre: $('#SALE_CENTRE').val(),
+            invno: r.INVNO, mark: r.MARK, grade: r.GRADE, packDate: r.PACK_DATE
+        }).done(function (d) {
+            if (d && d.FOUND) r.CAT_QTY_BAG = r3(d.CAT_QTY_BAG);
+        }).always(function () {
+            pending--;
+            recalcBags(r);
+            paintRow($tr, r);
+            refreshTotals();
+        });
+    }
+
+    $('#gridBody').on('change', 'input.num', function () {
+        var $tr = $(this).closest('tr'), r = findRow($tr.data('cid')); if (!r || IS_VIEW) return;
+        var col = $(this).data('col'), v = r3(this.value);
+        if (v > MAX_NUM) { showAlert('The value is too large.'); v = r[col]; }
+        // VB6: at JST, Kgs may not exceed catalogue qty per bag x Bags (when the per-bag qty is known).
+        if (col === 'WITHDRAWL_QTY' && IS_JST && num(r.CAT_QTY_BAG) > 0) {
+            var cap = r3(num(r.CAT_QTY_BAG) * num(r.BAG_CHEST));
+            if (r3(cap - v) < 0) { showAlert("Withdrawl Quantity can't be > " + cap); v = r[col]; }
+        }
+        r[col] = v;
+        this.value = col === 'BAG_CHEST' ? fc(v) : col === 'WITHDRAWL_QTY' ? fq(v) : f2(v);
+        if (col === 'BAG_CHEST') { recalcBags(r); paintRow($tr, r); afterBags($tr, r); }
+        refreshTotals();
+    });
+    $('#gridBody').on('focus', 'input.num:not([readonly])', function () { var el = this; setTimeout(function () { el.select(); }, 0); });
+    $('#gridBody').on('change', 'input.f-text', function () {
+        var r = findRow($(this).closest('tr').data('cid')); if (!r || IS_VIEW) return;
+        r[$(this).data('col')] = $.trim(this.value); this.value = r[$(this).data('col')];
+    });
+    // Enter moves to the next editable cell, as in the VB6 grid.
+    $('#gridBody').on('keydown', 'input', function (e) {
+        if (e.which !== 13) return;
+        e.preventDefault();
+        $(this).trigger('change');
+        var $all = $('#gridBody input:not([readonly]):not([type="checkbox"])');
+        var i = $all.index(this);
+        if (i >= 0 && i < $all.length - 1) $all.eq(i + 1).focus();
+    });
+
+    $('#chkAll').on('change', function () { $('.rowChk:not(:disabled)').prop('checked', $(this).is(':checked')); });
+    $('#btnRemoveRows').on('click', function () {
+        if (IS_VIEW) return;
+        var cids = $('.rowChk:checked').map(function () { return $(this).closest('tr').data('cid'); }).get();
+        if (!cids.length) { showAlert('Select at least one row to remove.'); return; }
+        rows = rows.filter(function (r) { return cids.indexOf(r._cid) === -1; });
+        $('#chkAll').prop('checked', false);
+        renderGrid();
+    });
+
+    // ---------------------------------------------------------------- lookups
+    // jquery.inputpicker dropdowns (Root UI convention, CLAUDE.md "Lookup pickers"): anchored under the
+    // field, paged, and searched server-side on EVERY column shown (the MVC picker actions take
+    // (q, limit, ..., p) and reply { data, count }). The first field is the value written to the box.
+    var CODE_NAME = [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Name' }];
+    var LOOKUPS = {
+        saleNo: { url: URL.saleNo, fields: [{ name: 'SALE_NO', text: 'Sale No' }, { name: 'CODE', text: 'Sale' }, { name: 'YEAR_CD', text: 'Year' }] },
+        centre: { url: URL.centre, fields: CODE_NAME },
+        broker: { url: URL.broker, fields: CODE_NAME },
+        category: { url: URL.category, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Category' }], selectMode: 'empty' },
+        mark: { url: URL.mark, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Mark' }, { name: 'GARDEN', text: 'Garden' }], selectMode: 'empty' }
+    };
+
+    // The row the user picked, looked up in the data the dropdown last loaded. This copy of the plugin
+    // writes the picked value into the original input and fires "change" on it; it does not hand the
+    // row to a select handler, so read it back by the picked value.
+    function pickedRow($input, cfg) {
+        var key = cfg.fields[0].name, v = String($input.val() == null ? '' : $input.val()), data = [];
+        try { data = $input.inputpicker('data') || []; } catch (e) { data = []; }
+        for (var i = 0; i < data.length; i++) { if (String(data[i][key]) === v) return data[i]; }
+        return null;
+    }
+
+    // Open the dropdown AND refresh its rows (the plugin only re-renders on a keystroke).
+    function showPickerList($orig) {
+        $orig.inputpicker('show');
+        $orig.next('.inputpicker-overflow-hidden').find('input').trigger($.Event('keyup', { keyCode: 0 }));
+    }
+
+    function pickerOptions(cfg) {
+        var o = {
+            url: cfg.url,
+            fields: cfg.fields,
+            fieldText: cfg.fields[0].name,
+            fieldValue: cfg.fields[0].name,
+            headShow: true,
+            filterOpen: true,
+            autoOpen: true,
+            pagination: true,
+            pageField: 'p',
+            pageLimitField: 'limit',
+            pageLimit: 10,
+            pageCountField: 'count',
+            width: 'auto',
+            urlDelay: 0.2      // seconds (the plugin multiplies by 1000): one request per pause in typing, not per keystroke
+        };
+        if (cfg.urlParam) o.urlParam = cfg.urlParam;
+        if (cfg.selectMode) o.selectMode = cfg.selectMode;
+        return o;
+    }
+
+    function visibleInput($orig) { return $orig.next('.inputpicker-overflow-hidden').find('input'); }
+
+    function openLookup(key, $input, onSelect, onClear) {
+        var cfg = LOOKUPS[key];
+        $('.inputpicker-wrapped-list').remove();
+
+        // This plugin never sets $.data('inputpicker'); the class it puts on the original input is the
+        // "already initialised" test. Showing is deferred a tick so the opening click's own bubbling
+        // doesn't reach the plugin's "outside click" handler and hide it again.
+        if ($input.hasClass('inputpicker-original')) {
+            setTimeout(function () { showPickerList($input); }, 0);
+            return;
+        }
+
+        $input.inputpicker(pickerOptions(cfg));
+        setTimeout(function () { showPickerList($input); }, 0);
+
+        function deliver(row) { if (row && onSelect) onSelect(row); }
+        $input.off('inputpicker.select').on('inputpicker.select', function (e, row) {
+            deliver(row);
+            $(this).inputpicker('hide');
+        });
+        $input.off('change.ipk').on('change.ipk', function () { deliver(pickedRow($input, cfg)); });
+        // An optional field is emptied by wiping its visible text (selectMode 'empty').
+        if (onClear) {
+            visibleInput($input).on('input', function () {
+                if (!$(this).val() && $input.val()) { $input.val(''); $(this).data('value', ''); onClear(); }
+            });
+        }
+    }
+
+    // Auction No (VB6 txtSaleNo).
+    $('#SALE_NO').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('saleNo', $(this));
+    });
+    // Sale Centre (VB6 txtSalesCentre).
+    $('#SALE_CENTRE').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('centre', $(this), function (c) { $('#SALE_CENTRE_disp').val(c.NAME || ''); });
+    });
+    // Broker (VB6 txtBroker, auction brokers only).
+    $('#BROKER').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('broker', $(this), function (b) { $('#BROKER_disp').val(b.NAME || ''); });
+    });
+    // Mark (VB6 txtMark): optional filter of the stock list.
+    $('#MARK').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('mark', $(this), function (m) { $('#MARK_disp').val(m.NAME || ''); }, function () { $('#MARK_disp').val(''); });
+    });
+    // Category (VB6 txtCategory): required for the stock list.
+    $('#CAT').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('category', $(this), function (c) { $('#CAT_disp').val(c.NAME || ''); }, function () { $('#CAT_disp').val(''); });
+    });
+
+    // ---------------------------------------------------------------- Select Stock popup
+    var stockRows = [], stockReq = 0;
+
+    // VB6 Command3_Click pre-checks (same messages).
+    function stockPrecheck() {
+        if (!$('#SALE_CENTRE').val()) return 'Sales Centre cannot be blank';
+        if (!$('#SALE_NO').val()) return "Sale No Can't be Empty";
+        if (!$('#CAT').val()) return 'Please Give the Category';
+        return null;
+    }
+
+    function openStock() {
+        if (IS_VIEW) return;
+        var err = stockPrecheck();
+        if (err) { showAlert(err); return; }
+        if (rows.length >= MAX_LINES) { showAlert('A withdrawal can hold at most ' + MAX_LINES + ' lots.'); return; }
+        $('#stockFind').val('');
+        $('#pickerOverlay, #stockPicker').fadeIn(120);
+        loadStock();
+    }
+    function closeStock() { $('.inputpicker-wrapped-list').hide(); $('#pickerOverlay, #stockPicker').fadeOut(120); }
+
+    // VB6 Command3_Click "Refresh".
+    function loadStock() {
+        var err = stockPrecheck();
+        if (err) { showAlert(err); return; }
+        var reqId = ++stockReq;
+        stockRows = [];
+        $('#stockCount').text('');
+        $('#stockBody').html('<p class="picker-empty">Loading...</p>');
+        $.getJSON(URL.stock, {
+            unit: UNIT,
+            withFrom: withFrom(),
+            saleNo: $('#SALE_NO').val(),
+            saleCentre: $('#SALE_CENTRE').val(),
+            category: $('#CAT').val(),
+            mark: $('#MARK').val()
+        }).done(function (data) {
+            if (reqId !== stockReq) return;
+            var have = {};
+            rows.forEach(function (r) { have[lineKey(r)] = true; });
+            // Lots already on the document are left out of the list.
+            stockRows = (data || []).filter(function (d) { return !have[lineKey(d)]; })
+                                    .map(function (d, i) { d._i = i; d._sel = false; return d; });
+            renderStock();
+        }).fail(function (x) {
+            if (reqId !== stockReq) return;
+            $('#stockBody').html('<p class="picker-empty">Could not load the stock. Click Refresh to try again.</p>');
+            failMsg(x);
+        });
+    }
+
+    // VB6 TDBGrid1 columns.
+    var STOCK_COLS = [['MARK_NAME', 'Mark'], ['INVNO', 'Inv No.'], ['GRADE', 'Grade Code'], ['PACK_DATE', 'Pack Date', 'date'], ['GRADE_NAME', 'Grade'],
+                      ['CHESTSLF', 'Start No.'], ['CHESTSLT', 'End No.'], ['CATEGORY', 'Category'], ['SEASON', 'Crop Yr.'], ['BAG_CHEST', 'Bags', 'cnt'],
+                      ['NET_WT', 'Net.Wt.', 'num'], ['TNET_WT', 'Total Net.Wt.', 'num'], ['TGROSS_WT', 'Total Gross Wt.', 'num'], ['SZ_CODE', 'Code'],
+                      ['LOTNO', 'Out LotNo']];
+    function isNumKind(k) { return k === 'num' || k === 'cnt'; }
+    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function cell(v, kind) { return '<td' + (isNumKind(kind) ? ' class="num"' : '') + '>' + esc(cellText(v, kind)) + '</td>'; }
+    function stockText(d) {
+        return STOCK_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.MARK || '']).join(' ').toUpperCase();
+    }
+    function shownStock() {
+        var term = $.trim($('#stockFind').val()).toUpperCase();
+        return stockRows.filter(function (d) { return !term || stockText(d).indexOf(term) >= 0; });
+    }
+    function renderStock() {
+        var shown = shownStock();
+        var html = '<table><thead><tr><th style="width:30px;">Tag</th>' +
+            STOCK_COLS.map(function (c) { return '<th' + (isNumKind(c[2]) ? ' class="num"' : '') + '>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>';
+        shown.forEach(function (d) {
+            html += '<tr data-i="' + d._i + '"><td><input type="checkbox" class="stockChk"' + (d._sel ? ' checked' : '') + ' /></td>' +
+                STOCK_COLS.map(function (c) { return cell(d[c[0]], c[2]); }).join('') + '</tr>';
+        });
+        html += '</tbody></table>';
+        if (!stockRows.length) html += '<p class="picker-empty">No lot is available for the selected Auction No / Sale Centre / Category / Mark.</p>';
+        else if (!shown.length) html += '<p class="picker-empty">No lot matches the search.</p>';
+        $('#stockBody').html(html);
+        $('#stockCount').text(stockRows.length ? shown.length + ' of ' + stockRows.length + ' lots' : '');
+    }
+    function stockAt(i) { for (var k = 0; k < stockRows.length; k++) { if (stockRows[k]._i == i) return stockRows[k]; } return null; }
+
+    $('#stockBody').on('click', 'tr[data-i]', function (e) {
+        var d = stockAt($(this).data('i')); if (!d) return;
+        var $chk = $(this).find('.stockChk');
+        if (!$(e.target).is('.stockChk')) $chk.prop('checked', !$chk.is(':checked'));
+        d._sel = $chk.is(':checked');
+    });
+    $('#stockFind').on('input', renderStock);
+    // VB6 txtInvNo: Enter on the Inv No. box tags the lot whose Inv No was typed.
+    $('#stockFind').on('keydown', function (e) {
+        if (e.which !== 13) return;
+        e.preventDefault();
+        var term = $.trim(this.value).toUpperCase();
+        if (!term) return;
+        var hit = stockRows.filter(function (d) { return String(d.INVNO || '').toUpperCase() === term; });
+        this.value = '';
+        if (!hit.length) { renderStock(); showAlert('Garden InvNo Not Found'); return; }
+        hit.forEach(function (d) { d._sel = true; });
+        renderStock();
+    });
+    $('#btnStockRefresh').on('click', loadStock);
+    // VB6 Command50 / Command15: Select All / De-Select All (of the rows shown).
+    $('#btnStockSelectAll').on('click', function () { shownStock().forEach(function (d) { d._sel = true; }); renderStock(); });
+    $('#btnStockDeselectAll').on('click', function () { shownStock().forEach(function (d) { d._sel = false; }); renderStock(); });
+    $('#stockClose, #btnStockCancel').on('click', closeStock);
+    $('#btnSelectStock').on('click', openStock);
+
+    // VB6 Command6_Click "OK": one grid line per tagged lot -- Bags = the available bags, Inv. Kgs = Net Wt x
+    // Bags, Total Gross Wt = Gross x Bags, Sample = the lot's sample, Kgs = Inv. Kgs - Sample (JST: the lot's
+    // catalogue qty), Lot No = the catalogue's lot no, Season From / To = the packing's season.
+    $('#btnStockOk').on('click', function () {
+        var picked = stockRows.filter(function (d) { return d._sel; });
+        if (!picked.length) { showAlert('Tag at least one lot.'); return; }
+        if (rows.length + picked.length > MAX_LINES) { showAlert('A withdrawal can hold at most ' + MAX_LINES + ' lots.'); return; }
+        picked.forEach(function (d) {
+            rows.push(newRow({
+                LOTNO: d.LOTNO, MARK: d.MARK, MARK_NAME: d.MARK_NAME, INVNO: d.INVNO, PACK_DATE: d.PACK_DATE, GRADE: d.GRADE,
+                GRADE_NAME: d.GRADE_NAME, CAT: d.CAT, CATEGORY: d.CATEGORY, BAG_CHEST: d.BAG_CHEST, NET_WT: d.NET_WT, GROSS: num(d.GROSS),
+                TNET_WT: d.TNET_WT, TGROSS_WT: d.TGROSS_WT, SAMPLE_QTY: d.SAMPLE_QTY, WITHDRAWL_QTY: d.WITHDRAWL_QTY,
+                SEASON_FROM: d.SEASON, SEASON_TO: d.SEASON, CAT_QTY_BAG: d.CAT_QTY_BAG
+            }));
+        });
+        closeStock();
+        renderGrid();
+    });
+
+    // ---------------------------------------------------------------- send mail (View mode)
+    $('#btnMail').on('click', function () {
+        $.getJSON(URL.mail, { unit: UNIT, docno: H.DOCNO, docdt: iso(H.DOCDT) })
+            .done(function (m) {
+                if (!m || m.message) { showAlert((m && m.message) || 'Unable to prepare the mail.'); return; }
+                if (!m.TO) { showAlert('No E-Mail Id is set for the broker ' + (m.BROKER_NAME || '') + '.'); return; }
+                window.location.href = 'mailto:' + encodeURIComponent(m.TO) + '?subject=' + encodeURIComponent(m.SUBJECT || '') +
+                    '&body=' + encodeURIComponent(m.BODY || '');
+            })
+            .fail(function (x) { failMsg(x, 'Unable to prepare the mail.'); });
+    });
+
+    // ---------------------------------------------------------------- save
+    function payload() {
+        return {
+            // UNIT: the locked Unit (see state above). IsNew lets the server apply the AEDV Add / Edit
+            // right and back-date window (WithdrawlEntryController.Save).
+            UNIT: $('#UNIT_disp').val(), IsNew: !IS_EDIT,
+            DOCNO: $('#DOCNO').val() || null, DOCDT: $('#DOCDT').val() || null,
+            SALE_NO: $('#SALE_NO').val(), SALE_CENTRE: $('#SALE_CENTRE').val(), BROKER: $('#BROKER').val(),
+            WITH_FROM: withFrom(),
+            LINES: rows.map(function (r) {
+                return {
+                    LOTNO: r.LOTNO, MARK: r.MARK, INVNO: r.INVNO, PACK_DATE: r.PACK_DATE || null, GRADE: r.GRADE, CAT: r.CAT,
+                    BAG_CHEST: r3(r.BAG_CHEST), NET_WT: r3(r.NET_WT), TNET_WT: r3(r.TNET_WT), TGROSS_WT: r3(r.TGROSS_WT),
+                    WITHDRAWL_QTY: r3(r.WITHDRAWL_QTY), SAMPLE_QTY: r3(r.SAMPLE_QTY), OTHER_QTY: r3(r.OTHER_QTY),
+                    OUT_LOTNO: r.OUT_LOTNO, SEASON_FROM: r.SEASON_FROM, SEASON_TO: r.SEASON_TO, REMARKS: r.REMARKS
+                };
+            })
+        };
+    }
+
+    // VB6 txtDocdt_Validate + Command1_Click (same order and messages).
+    function validate() {
+        var d = $('#DOCDT').val();
+        if (!d) return 'INVALID DATE !';
+        if (!IS_EDIT) {
+            if (d > TODAY) return 'Can not enter future date ' + dmy(d);
+            if (d < FY_START || d > FY_END) return 'Date not between financial Year';
+            if (d < ($('#DOCDT').attr('min') || '') || d > ($('#DOCDT').attr('max') || '9999')) {
+                return 'Date must be between ' + dmy($('#DOCDT').attr('min')) + ' and ' + dmy($('#DOCDT').attr('max')) + '.';
+            }
+        }
+        if (!$('#SALE_CENTRE').val()) return 'Sales Centre cannot be blank';
+        if (!$('#SALE_NO').val()) return 'Sale Type cannot be blank';
+        if (!$('#BROKER').val()) return 'Broker cannot be blank';
+        if (!rows.length) return 'No Record in Datagrid to Save';
+        if (rows.length > MAX_LINES) return 'A withdrawal can hold at most ' + MAX_LINES + ' lots.';
+        var needLot = lotNoRequired();
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i], at = 'Line ' + r.SRLNO + ': ';
+            if (!r.INVNO) return i === 0 ? 'Without Invoice Detail, Record Can Not be Saved.' : at + 'select the Invoice.';
+            if (!r.LOTNO && needLot) return at + 'Without Lotno, Record Can Not be Saved.';
+            if (!(r.BAG_CHEST > 0)) return at + 'Enter Bag Invoice Detail !';
+            if (r.SAMPLE_QTY + r.OTHER_QTY > r.TNET_WT + 1e-9) return at + 'Sample + Other is more than the Inv. Kgs.';
+            if (IS_JST && num(r.CAT_QTY_BAG) > 0 && r3(r3(r.CAT_QTY_BAG * r.BAG_CHEST) - r.WITHDRAWL_QTY) < 0)
+                return at + "Withdrawl Quantity can't be > " + r3(r.CAT_QTY_BAG * r.BAG_CHEST);
+        }
+        return null;
+    }
+
+    var saving = false;
+    $('#btnSave').on('click', function () {
+        if (IS_VIEW || saving) return;
+        $('#gridBody input:focus').trigger('change');
+        if (pending > 0) { showAlert('Please wait -- the catalogue quantity is still being read.'); return; }
+        var err = validate();
+        if (err) { showAlert(err); return; }
+        showConfirm('Are you sure?', function () {
+            saving = true;
+            $('#btnSave').prop('disabled', true);
+            $.ajax({ url: URL.save, type: 'POST', contentType: 'application/json', data: JSON.stringify(payload()) })
+                .done(function (resp) {
+                    if (resp && resp.success) {
+                        var no = resp.data && resp.data.docno ? resp.data.docno : '';
+                        showAlert('Saved successfully.' + (no ? '\n' + 'Withdrawl No. ' + no : ''), function () { window.location.href = URL.list; });
+                    } else {
+                        showAlert((resp && resp.message) || 'Save failed.');
+                    }
+                })
+                .fail(function (x) { failMsg(x, 'Save failed.'); })
+                .always(function () { saving = false; $('#btnSave').prop('disabled', false); });
+        });
+    });
+
+    // ---------------------------------------------------------------- init
+    rows = (DOC.lines || []).map(function (l) { return newRow(l); });
+    renderGrid();
+    applyModeUi();
+    // Leaving the page (e.g. a side-menu click) closes any dropdown still open.
+    $(window).on('beforeunload pagehide', function () { $('.inputpicker-wrapped-list').hide(); });
+})();
+</script>
+@Html.Partial("_RecordLock")
+</body>
+</html>

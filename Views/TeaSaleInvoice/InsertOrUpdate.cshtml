@@ -1,0 +1,1557 @@
+﻿@{
+    string tranName = (string)ViewBag.Caption;
+    string ctl = (string)ViewBag.Ctl;
+    bool isAuctionScreen = (bool)(ViewBag.IsAuctionScreen ?? false);
+    ViewBag.Title = tranName;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    bool isEdit = ViewBag.IsEdit ?? false;
+    bool isView = ViewBag.IsView ?? false;
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <link href="~/libraries/assetspo/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order.css">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order-responsive.css">
+    <!-- Root UI lookup convention (CLAUDE.md "Lookup pickers"): every code / name lookup is a
+         jquery.inputpicker dropdown, the same widget PacketTeaPurchaseEntry / Packing Entry use. -->
+    <link href="~/Controllers/Test/assets/css/jquery.inputpicker.css" rel="stylesheet" />
+    <script src="~/libraries/assetspo/js/custom.js"></script>
+    <script src="~/Controllers/Test/assets/js/jquery.inputpicker.js"></script>
+    <style>
+        .inputpicker-wrapped-list .inputpicker-active td,
+        .inputpicker-wrapped-list .inputpicker-active th { background: #404e68 !important; color: #fff !important; font-weight: bold; }
+        .inputpicker-wrapped-list { min-width: max-content !important; }
+        .inputpicker-wrapped-list table { width: max-content !important; }
+        input[readonly], input:disabled, select:disabled { background-color: #f3f4f7; color: #555; }
+        .accordion-container.compact-accordion { height: auto; overflow-y: visible; }
+        .accordion-container.main-accordion { height: auto; overflow-y: visible; }
+        #gridTable th, #gridTable td { white-space: nowrap; }
+        #gridTable td input { min-width: 70px; width: 90px; }
+        #gridTable td input.f-BUYER_WH_CODE { width: 100px; }
+        #gridTable td.num, #gridTable th.num, #gridTable tfoot td { text-align: right; }
+        /* VB grid columns shown only at location JST (Disc %, Disc Amt, Buyer W/H, Warehouse) or for
+           auction / 1SB sale types (Extra Billed Wt). */
+        #gridTable.no-jst .c-jst, #gridTable.no-extra .c-extra { display: none; }
+        input.num { text-align: right; }
+        #gridTable td input[readonly] { cursor: default; }
+        #gridTable td a.dmg-link { cursor: pointer; text-decoration: underline; }
+        .dt-tm { display: flex; gap: 6px; }
+        .dt-tm input[type="time"] { width: 110px; flex: none; }
+        .gst-diff { color: #b00020; font-weight: bold; padding-top: 28px; }
+        .pick-btn-wrap { display: flex; gap: 6px; }
+        .pick-btn-wrap input { flex: 1; }
+        .pick-btn-wrap button { width: auto; padding: 4px 10px; }
+        /* Pickers are as wide as their list needs (like Warehouse AWR's despatch picker), not fixed. */
+        .popup-box.picker-box { display: none; width: fit-content; min-width: 560px; max-width: min(1080px, 92vw); padding: 14px 16px; }
+        .popup-box.picker-box h2 { font-size: 16px; }
+        .popup-box.picker-box.xwide { width: min(1180px, 94vw); max-width: min(1180px, 94vw); }
+        .popup-box .picker-body { max-height: 46vh; overflow: auto; margin-top: 8px; }
+        .popup-box .picker-body table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+        .popup-box .picker-body th { text-align: left; background: #f4f6fa; padding: 6px 8px; border-bottom: 2px solid #ddd; color: #333; position: sticky; top: 0; }
+        .popup-box .picker-body th.num, .popup-box .picker-body td.num { text-align: right; }
+        .popup-box .picker-body td { padding: 5px 8px; border-bottom: 1px solid #eee; cursor: pointer; color: #222; white-space: nowrap; }
+        .popup-box .picker-body tr:hover td, .popup-box .picker-body tr.is-active td { background: #eef3ff; }
+        .popup-box .picker-body td input[type="text"] { width: 100%; min-width: 90px; }
+        .popup-box .picker-empty { margin: 10px 4px 2px; font-size: 12px; color: #666; }
+        .popup-box .item-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .popup-box .item-filters input[type="text"] { width: 140px; }
+        .popup-box .item-filters label { margin: 0 4px 0 0; font-size: 12px; }
+        .popup-box.alert-box { width: 440px; max-width: 92vw; display: none; }
+        .popup-box.alert-box .alert-message { max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+        .popup-box.alert-box .alert-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .action-btns li a.is-disabled, .action-btns li button:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+        /* Brokerage & Tea Board Bill Details (VB Frame5). */
+        .br-section { font-weight: bold; color: #2c3958; margin: 10px 0 4px; }
+        .br-table { border-collapse: collapse; font-size: 12px; }
+        .br-table th { background: #f4f6fa; padding: 5px 6px; border-bottom: 2px solid #ddd; white-space: nowrap; position: sticky; top: 0; }
+        .br-table td { padding: 3px 4px; border-bottom: 1px solid #eee; white-space: nowrap; }
+        .br-table td input { width: 82px; font-size: 12px; padding: 3px 5px; }
+        .br-table td input.w-inv { width: 130px; }
+        .br-table td input.w-sacd { width: 150px; }
+        .br-table td.num, .br-table th.num { text-align: right; }
+        .br-tds { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+        .br-tds > div { display: flex; flex-direction: column; }
+        .br-tds input { width: 120px; }
+    </style>
+</head>
+<body>
+
+    <div class="general-container">
+        <div class="purchase-details">
+            <div class="header-content">
+                <div class="action-btns">
+                    <ul>
+                        <li><a href="@Url.Action("Index", ctl)"><i class="fa fa-arrow-left"></i> Back</a></li>
+                        <li><button type="button" id="btnSave" @(isView ? "disabled" : "")><i class="fa fa-floppy-o"></i> Save</button></li>
+                        <li><a href="@Url.Action("Index", ctl)"><i class="fa fa-times"></i> Cancel</a></li>
+                        <li style="margin-left:auto">
+                            <label class="btn btn-inverse pull-right" style="margin:0; border:none;">
+                                Status : <span id="statusText">@(isView ? "View" : isEdit ? "Edit" : "Add")</span>
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+                <div class="header-details">
+                    <div class="left">
+                        <div class="order-code">
+                            <div class="txt"><div class="title-heading">Sales Invoice Entry - @tranName</div></div>
+                        </div>
+                        <div class="title-heading">TAX INVOICE NO. : <span id="hdrDocNo"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container compact-accordion">
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Unit / Sale Type</span></div>
+                    <div class="accordion-body">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Unit</label>
+                                @* #UNIT_disp keeps the code that is saved; #UNIT_name shows the unit's name. *@
+                                <input type="hidden" id="UNIT_disp" />
+                                <input type="text" id="UNIT_name" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sale Type <span>(*)</span></label>
+                                <input type="text" id="SALE_TYPE" data-picker="saleType" readonly autocomplete="off" />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Sale Type Name</label>
+                                <input type="text" id="SALE_TYPE_disp" readonly />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container main-accordion">
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Header</span></div>
+                    <div class="accordion-body">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Tax Invoice No</label>
+                                @* T_SALESINVOICE.DESP_NO VARCHAR2(16) *@
+                                <input type="text" id="DESP_NO" maxlength="16" placeholder="(auto)" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Tax Invoice Date <span>(*)</span></label>
+                                <input type="date" id="DESP_DATE" min="@ViewBag.MinDocDate" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sale Centre <span>(*)</span></label>
+                                <input type="text" id="SALE_CENTRE" data-picker="centre" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sale Centre Name</label>
+                                <input type="text" id="SALE_CENTRE_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>A/C Voucher No</label>
+                                <input type="text" id="JV_DOCNO" readonly />
+                            </div>
+                        </div>
+                        @if (isAuctionScreen)
+                        {
+                            <div class="form-row">
+                                <div class="form-col-20">
+                                    <label>Auction Sale No <span>(*)</span></label>
+                                    <div class="pick-btn-wrap">
+                                        <input type="text" id="SALE_NO" readonly placeholder="Click ..." />
+                                        <button type="button" class="btn-white" id="btnSaleNo" title="Pick the auction sale / broker / mark">...</button>
+                                    </div>
+                                </div>
+                                <div class="form-col-20">
+                                    <label>Sale Date</label>
+                                    <input type="date" id="SALE_DATE" />
+                                </div>
+                            </div>
+                        }
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Bill To <span>(*)</span></label>
+                                <input type="text" id="BILL_TO_PARTY" data-picker="party" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-30">
+                                <label>Bill To Name</label>
+                                <input type="text" id="BILL_TO_PARTY_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Ship To <span>(*)</span></label>
+                                <input type="text" id="PCODE" data-picker="party" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-30">
+                                <label>Ship To Name</label>
+                                <input type="text" id="PCODE_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Broker</label>
+                                <input type="text" id="BROK_CODE" data-picker="broker" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-30">
+                                <label>Broker Name</label>
+                                <input type="text" id="BROK_CODE_disp" readonly />
+                            </div>
+                            @* VB txtCust / Label26-27: shown for sale types '1..' only. *@
+                            <div class="form-col-20 cust-box">
+                                <label>Party</label>
+                                <input type="text" id="PARTY_CODE" data-picker="customer" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-30 cust-box">
+                                <label>Party Name</label>
+                                <input type="text" id="PARTY_CODE_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Consignment No</label>
+                                <input type="text" id="CONS_NO" maxlength="20" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Date</label>
+                                <input type="date" id="CONS_DT" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Transporter</label>
+                                <input type="text" id="TPT" data-picker="transporter" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Transporter Name</label>
+                                <input type="text" id="TPT_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Vehicle No.</label>
+                                <input type="text" id="TNO" maxlength="15" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Way Bill No.</label>
+                                <input type="text" id="WAY_BILL" maxlength="20" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Transportation Mode</label>
+                                <input type="text" id="DESP_BY" maxlength="20" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Destination</label>
+                                <input type="text" id="DEST_TO" data-picker="destination" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Destination Name</label>
+                                <input type="text" id="DEST_TO_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Prompt Date</label>
+                                <input type="date" id="PROMPT_DATE" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-30">
+                                <label>Date and Time of Issue</label>
+                                <div class="dt-tm"><input type="date" id="ISSUE_DT" /><input type="time" id="ISSUE_TM" /></div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Date and Time of Removal</label>
+                                <div class="dt-tm"><input type="date" id="REMOVAL_DT" /><input type="time" id="REMOVAL_TM" /></div>
+                            </div>
+                            <div class="form-col-20">
+                                <label>Order Ref. No</label>
+                                <input type="text" id="ORDNO" maxlength="30" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Order Ref. Date</label>
+                                <input type="date" id="ORDDT" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Brokerage Rate</label>
+                                <input type="text" id="BROKERAGE_RATE" class="num" data-dp="4" inputmode="decimal" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Brokerage Amt</label>
+                                <input type="text" id="BROKERAGE" class="num" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Bank For NEFT/RTGS</label>
+                                <input type="text" id="BANK_ACODE" data-picker="bank" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Bank Name</label>
+                                <input type="text" id="BANK_ACODE_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            @* VB Label30 / txtTotGST / txtTotSysGST: sale types '1..' and '4' only. *@
+                            <div class="form-col-20 gst-box">
+                                <label>Total GST As Per Invoice</label>
+                                <input type="text" id="TOT_GSTAMT_M" class="num" inputmode="decimal" />
+                            </div>
+                            <div class="form-col-20 gst-box">
+                                <label>Total GST As Per System</label>
+                                <input type="text" id="TOT_GST_SYS" class="num" readonly value="0.00" />
+                            </div>
+                            <div class="form-col-40 gst-box">
+                                <div class="gst-diff" id="gstDiffText"></div>
+                            </div>
+                            <div class="form-col-20">
+                                <label>Total Amount</label>
+                                <input type="text" id="TOTAL_disp" class="num" style="font-weight:bold;" readonly value="0.00" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Invoice Details</span></div>
+                    <div class="accordion-body active" style="display:block;">
+                        <div class="action-btns">
+                            <ul>
+                                <li><a href="javascript:void(0)" id="btnSelectItems"><i class="fa fa-search"></i> Select Garden Invoice</a></li>
+                                <li><a href="javascript:void(0)" id="btnRemoveRows"><i class="fa fa-trash-o"></i> Remove Selected</a></li>
+                                <li><a href="javascript:void(0)" id="btnAdjustGst" style="display:none;"><i class="fa fa-balance-scale"></i> Adjust Difference GST</a></li>
+                                <li><a href="javascript:void(0)" id="btnBrokerage"><i class="fa fa-file-text-o"></i> Brokerage Bill &amp; Tea Board Bill Entry</a></li>
+                            </ul>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="border" id="gridTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:26px;"><input type="checkbox" id="chkAll" /></th>
+                                        <th style="width:30px;">Sl.</th>
+                                        <th>Mark</th>
+                                        <th>Inv No.</th>
+                                        <th>Pack Date</th>
+                                        <th>Grade</th>
+                                        <th>Crop Yr.</th>
+                                        <th class="num">Net.Wt.</th>
+                                        <th class="num">Bags</th>
+                                        <th class="num">Inv. Kgs</th>
+                                        <th class="num">Gross Wt.</th>
+                                        <th class="num">Ins. Rate</th>
+                                        <th class="num">Ins. Amt</th>
+                                        <th class="num c-extra">Extra Billed Wt</th>
+                                        <th class="num">Bill Qty</th>
+                                        <th class="num">Sample</th>
+                                        <th class="num">Other</th>
+                                        <th class="num">Rate</th>
+                                        <th class="num">Basic Amt</th>
+                                        <th class="num c-jst">Disc %</th>
+                                        <th class="num c-jst">Disc Amt</th>
+                                        <th class="num">CGST %</th>
+                                        <th class="num">CGST Amt</th>
+                                        <th class="num">SGST %</th>
+                                        <th class="num">SGST Amt</th>
+                                        <th class="num">IGST %</th>
+                                        <th class="num">IGST Amt</th>
+                                        <th class="num">TCS %</th>
+                                        <th class="num">TCS Amt</th>
+                                        <th class="num">Total Amount</th>
+                                        <th>Damage</th>
+                                        <th class="num">Damage Qty</th>
+                                        <th class="c-jst">Buyer W/H</th>
+                                        <th class="c-jst">Warehouse</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gridBody"></tbody>
+                                <tfoot>
+                                    <tr class="total">
+                                        <td colspan="8" style="text-align:right;">Total</td>
+                                        <td id="ftBag"></td>
+                                        <td id="ftTNet"></td>
+                                        <td id="ftGross"></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td class="c-extra" id="ftExtra"></td>
+                                        <td id="ftQty"></td>
+                                        <td id="ftSample"></td>
+                                        <td id="ftOther"></td>
+                                        <td></td>
+                                        <td id="ftAmt"></td>
+                                        <td class="c-jst"></td>
+                                        <td class="c-jst" id="ftDisc"></td>
+                                        <td></td>
+                                        <td id="ftCgst"></td>
+                                        <td></td>
+                                        <td id="ftSgst"></td>
+                                        <td></td>
+                                        <td id="ftIgst"></td>
+                                        <td></td>
+                                        <td id="ftTcs"></td>
+                                        <td id="ftTot"></td>
+                                        <td colspan="2"></td>
+                                        <td class="c-jst"></td>
+                                        <td class="c-jst"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="pickerOverlay"></div>
+
+    <!-- VB6 GardenInv_List ("Select Garden Invoice"): confirmations (private) / sold catalogue lots
+         (auction) still to be billed, with stock -->
+    <div class="popup-box picker-box" id="itemPicker">
+        <div class="popup-header">
+            <h2>Select Garden Invoice</h2>
+            <button type="button" class="close-btn" id="itemClose">X</button>
+        </div>
+        <div class="item-filters">
+            <input type="text" id="fltMark" data-picker="mark" placeholder="Mark" autocomplete="off" />
+            <input type="text" id="fltCat" data-picker="category" placeholder="Category" autocomplete="off" />
+            <span id="basedOnBox">
+                <label>Based On</label>
+                <label><input type="radio" name="basedOn" value="party" checked /> Party</label>
+                <label><input type="radio" name="basedOn" value="broker" /> Broker</label>
+            </span>
+            <button type="button" id="btnItemRefresh" class="btn-white" style="width:auto;padding:5px 14px;">Refresh</button>
+            <input type="text" id="itemSearch" placeholder="Find (any column)..." autocomplete="off" />
+            <button type="button" id="btnItemAll" class="btn-white" style="width:auto;padding:5px 14px;">Select All</button>
+            <button type="button" id="btnItemNone" class="btn-white" style="width:auto;padding:5px 14px;">De-Select All</button>
+        </div>
+        <div class="picker-body" id="itemBody"></div>
+        <div style="text-align:right;padding-top:10px;">
+            <button type="button" class="btn-blue" id="btnItemOk" style="width:auto;padding:5px 16px;">OK</button>
+            <button type="button" class="btn-white" id="btnItemCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- VB6 txtSaleNo help: auction sale / broker / mark of the catalogue -->
+    <div class="popup-box picker-box" id="salePicker">
+        <div class="popup-header">
+            <h2>Auction Sale No</h2>
+            <button type="button" class="close-btn" id="saleClose">X</button>
+        </div>
+        <div class="item-filters">
+            <input type="text" id="saleSearch" placeholder="Find (any column)..." autocomplete="off" />
+        </div>
+        <div class="picker-body" id="saleBody"></div>
+    </div>
+
+    <!-- VB6 Frame3 "Damage & Shortage Details" -->
+    <div class="popup-box picker-box" id="damagePicker">
+        <div class="popup-header">
+            <h2>Damage &amp; Shortage Details</h2>
+            <button type="button" class="close-btn" id="damageClose">X</button>
+        </div>
+        <div class="picker-body" id="damageBody"></div>
+        <div style="text-align:right;padding-top:10px;">
+            <button type="button" class="btn-blue" id="btnDamageSave" style="width:auto;padding:5px 16px;">Save</button>
+            <button type="button" class="btn-white" id="btnDamageRevert" style="width:auto;padding:5px 16px;">Revert</button>
+        </div>
+    </div>
+
+    <!-- VB6 Frame5 "Brokerage && Tea Board Bill Details" -->
+    <div class="popup-box picker-box xwide" id="brokeragePicker">
+        <div class="popup-header">
+            <h2>Brokerage &amp; Tea Board Bill Details</h2>
+            <button type="button" class="close-btn" id="brokerageClose">X</button>
+        </div>
+        <div class="picker-body" style="max-height:62vh;">
+            <div class="br-section">Brokerage Bill Details</div>
+            <div class="br-tds">
+                <div>
+                    <label>TDS Detail - Head</label>
+                    <input type="text" id="TDS_CODE" data-picker="tds" placeholder="Click to select" autocomplete="off" />
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <input type="text" id="TDS_CODE_disp" readonly style="width:260px;" />
+                </div>
+                <div><label>Detd. on Amt.</label><input type="text" id="ftTdsOn" class="num" readonly /></div>
+                <div><label>TDS Amt.</label><input type="text" id="ftTdsDetd" class="num" readonly /></div>
+            </div>
+            <div style="overflow-x:auto;"><table class="br-table" id="brTableB"></table></div>
+            <div class="br-section">Tea Board Bill Details</div>
+            <div style="overflow-x:auto;"><table class="br-table" id="brTableT"></table></div>
+        </div>
+        <div style="text-align:right;padding-top:10px;">
+            <button type="button" class="btn-blue" id="btnBrokerageClose" style="width:auto;padding:5px 16px;">Close</button>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="appAlertOverlay"></div>
+    <div class="popup-box alert-box" id="appAlertBox">
+        <div class="popup-header"><h2 id="appAlertTitle">Notice</h2></div>
+        <div class="alert-message" id="appAlertMessage"></div>
+        <div class="alert-actions">
+            <button type="button" class="btn-white" id="appAlertCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+            <button type="button" class="btn-blue" id="appAlertOk" style="width:auto;padding:5px 16px;">OK</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    var IS_EDIT = @(isEdit ? "true" : "false");
+    var IS_VIEW = @(isView ? "true" : "false");
+    var AUCTION_SCREEN = @(isAuctionScreen ? "true" : "false");
+    var DOC = @Html.Raw(ViewBag.DocJson ?? "{}");
+    var H = DOC.head || {};
+    var URL = {
+        saleType: '@Url.Action("GetSaleTypes", ctl)',
+        party: '@Url.Action("GetParty", ctl)',
+        customer: '@Url.Action("GetCustomer", ctl)',
+        centre: '@Url.Action("GetSalesCentre", ctl)',
+        broker: '@Url.Action("GetBroker", ctl)',
+        transporter: '@Url.Action("GetTransporter", ctl)',
+        destination: '@Url.Action("GetDestination", ctl)',
+        bank: '@Url.Action("GetBank", ctl)',
+        mark: '@Url.Action("GetMark", ctl)',
+        category: '@Url.Action("GetCategory", ctl)',
+        gst: '@Url.Action("GetGstCode", ctl)',
+        tds: '@Url.Action("GetTdsHead", ctl)',
+        auctionSales: '@Url.Action("GetAuctionSales", ctl)',
+        pending: '@Url.Action("GetPending", ctl)',
+        pendingHint: '@Url.Action("GetPendingHint", ctl)',
+        damage: '@Url.Action("GetDamage", ctl)',
+        rates: '@Url.Action("GetRates", ctl)',
+        save: '@Url.Action("Save", ctl)',
+        list: '@Url.Action("Index", ctl)'
+    };
+    var MIN_DOC = '@ViewBag.MinDocDate';
+
+    // ---------------------------------------------------------------- helpers
+    $('#pickerOverlay, #itemPicker, #salePicker, #damagePicker, #brokeragePicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
+    function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
+    function rn(v, dp) { v = num(v); var s = v < 0 ? -1 : 1, m = Math.pow(10, dp); return s * Math.round(Math.abs(v) * m + 1e-7) / m; }
+    function r0(v) { return rn(v, 0); }
+    function r2(v) { return rn(v, 2); }
+    function r3(v) { return rn(v, 3); }
+    function f2(v) { return r2(v).toFixed(2); }
+    function f3(v) { return r3(v).toFixed(3); }
+    // Whole-number / count fields (Bags): no forced decimals; only float noise is trimmed.
+    function rc(v) { return Math.round(num(v) * 1e6) / 1e6; }
+    function fc(v) { return String(rc(v)); }
+    // Per-column decimals: 0 = plain count, 2 = amount / rate / %, 3 = qty / weight.
+    var COL_DP = { BAG_CHEST: 0, NET_WT: 3, TNET_WT: 3, TGROSS_WT: 3, EXTRA_BILLED_WT: 3, BILL_QTY: 3, SAMPLE_QTY: 3, OTHER_QTY: 3, INSRATE: 2, INSURANCE: 2,
+                   RATE: 2, AMOUNT: 2, DISC_PER: 2, DISCOUNT: 2, CGST_RT: 2, CGST_AMT: 2, SGST_RT: 2, SGST_AMT: 2, IGST_RT: 2, IGST_AMT: 2,
+                   TCS_RATE: 3, TCS_AMT: 2, TOT_AMT: 2, DAMAGE_QTY: 0 };
+    function rcol(col, v) { var dp = COL_DP[col]; return dp === 3 ? r3(v) : dp === 0 ? rc(v) : r2(v); }
+    function fcol(col, v) { var dp = COL_DP[col]; return dp === 3 ? f3(v) : dp === 0 ? fc(v) : f2(v); }
+    function iso(d) { return d ? String(d).substring(0, 10) : ''; }
+    function dmy(d) { d = iso(d); return d ? d.substring(8, 10) + '/' + d.substring(5, 7) + '/' + d.substring(0, 4) : ''; }
+    function addDays(d, n) {
+        d = iso(d); if (!d) return '';
+        var t = new Date(Date.UTC(+d.substring(0, 4), +d.substring(5, 7) - 1, +d.substring(8, 10)));
+        t.setUTCDate(t.getUTCDate() + n);
+        return t.toISOString().substring(0, 10);
+    }
+    function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
+
+    function closeAlert() { $('#appAlertOverlay, #appAlertBox').fadeOut(120); }
+    function showAlert(message, onOk) { AppMsg.show(message, onOk); }
+    function showConfirm(message, onYes, onNo) {
+        $('#appAlertTitle').text('Confirm');
+        $('#appAlertMessage').text(message || '');
+        $('#appAlertCancel').show().off('click').on('click', function () { closeAlert(); if (onNo) onNo(); });
+        $('#appAlertOk').off('click').on('click', function () { closeAlert(); onYes(); });
+        $('#appAlertOverlay, #appAlertBox').fadeIn(120);
+    }
+    function failMsg(x, fallback) {
+        if (x && x.status === 440) {
+            showAlert((x.responseJSON && x.responseJSON.message) || 'Your session has expired. Please log in again.', function () { window.location.reload(); });
+            return;
+        }
+        if (x && x.statusText === 'abort') return;
+        showAlert((x && x.responseJSON && x.responseJSON.message) || fallback || 'Could not load data. Please try again.');
+    }
+
+    // Numeric-only inputs: digits and one decimal point, decimals capped per column (data-col) or data-dp.
+    function sanitizeNum(el) {
+        var v = el.value, clean = v.replace(/[^0-9.]/g, '');
+        var dp = COL_DP[$(el).data('col')]; if (dp === undefined) dp = $(el).data('dp'); if (dp === undefined) dp = 2;
+        var dot = clean.indexOf('.');
+        if (dot >= 0) {
+            var frac = clean.substring(dot + 1).replace(/\./g, '');
+            clean = clean.substring(0, dot + 1) + (dp === 0 ? frac.substring(0, 2) : frac.substring(0, dp));
+        }
+        if (clean !== v) el.value = clean;
+    }
+    $(document).on('keypress', 'input.num:not([readonly])', function (e) {
+        var ch = String.fromCharCode(e.which);
+        if (e.which < 32) return;
+        if (!/[0-9.]/.test(ch) || (ch === '.' && this.value.indexOf('.') >= 0 && this.selectionStart === this.selectionEnd)) e.preventDefault();
+    });
+    $(document).on('input paste', 'input.num:not([readonly])', function () { var el = this; setTimeout(function () { sanitizeNum(el); }, 0); });
+
+    // ---------------------------------------------------------------- state
+    var FY_START = iso(H.FY_START), FY_END = iso(H.FY_END);
+    var TODAY = iso(H.TODAY) || new Date().toISOString().substring(0, 10);
+    // The Unit is locked: a NEW invoice carries the one picked on the list's "New" row (server-checked
+    // against the user's units), an edit the invoice's own. #UNIT_disp (the code) is what Save posts.
+    var UNIT = H.UNIT || '';
+    var IS_JST = !!H.IS_JST;                 // VB loca1 = "JST" (the document unit's location)
+    var LOCA = H.LOCA || '';
+    var ORIG_DATE = IS_EDIT ? iso(H.DESP_DATE) : '';
+    var RATES = {};                 // grade -> {CGST_RT, SGST_RT, IGST_RT, TCS_RATE} for the current parties / centre / date
+    var BR_RATES = {};              // GST code -> {CGST_RT, SGST_RT, IGST_RT, FOUND} for the brokerage / tea board rows
+    var BILL_TYPE = H.BILL_TYPE || '';   // M_PMAST.TYPE of the Bill To party ('01' = own unit, '03' = buyer)
+    var BILL_STATE = H.BILL_STATE || '';
+    var SHIP_TYPE = '';
+    var rows = [], seq = 0;
+    var DEST_FROM = H.DEST_FROM || '';   // VB txtDESTI_FROM: hidden on the form, carried from the last invoice
+    var SALE_MARK = '';                  // VB txtMark set by the auction sale pick (Select Data's mark filter)
+
+    function saleType() { return $('#SALE_TYPE').val() || ''; }
+    function isAuction() { return saleType().charAt(0) === '4'; }
+    function oneType() { return saleType().charAt(0) === '1'; }
+    function headLocked() { return IS_EDIT || IS_VIEW || rows.length > 0; }   // VB: parties / sale type / sale no lock once lots are picked
+
+    // ---------------------------------------------------------------- header
+    $('#UNIT_disp').val(UNIT);
+    $('#UNIT_name').val(H.UNIT_NAME || UNIT).attr('title', UNIT);
+    $('#SALE_TYPE').val(H.SALE_TYPE || ''); $('#SALE_TYPE_disp').val(H.SALE_TYPE_NAME || '');
+    $('#DESP_NO').val(IS_EDIT ? (H.DESP_NO || '') : '');
+    $('#hdrDocNo').text(IS_EDIT ? (H.DESP_NO || '') : '');
+    $('#JV_DOCNO').val(H.JV_DOCNO || '');
+    [['SALE_CENTRE', 'SALE_CENTRE_NAME'], ['BILL_TO_PARTY', 'BILL_TO_NAME'], ['PCODE', 'PCODE_NAME'], ['PARTY_CODE', 'PARTY_NAME'],
+     ['BROK_CODE', 'BROKER_NAME'], ['TPT', 'TPT_NAME'], ['DEST_TO', 'DEST_TO_NAME'], ['BANK_ACODE', 'BANK_NAME'], ['TDS_CODE', 'TDS_NAME']].forEach(function (p) {
+        $('#' + p[0]).val(H[p[0]] || ''); $('#' + p[0] + '_disp').val(H[p[1]] || '');
+    });
+    ['CONS_NO', 'TNO', 'WAY_BILL', 'DESP_BY', 'ORDNO', 'ISSUE_TM', 'REMOVAL_TM', 'SALE_NO'].forEach(function (k) { $('#' + k).val(H[k] || ''); });
+    ['CONS_DT', 'ISSUE_DT', 'REMOVAL_DT', 'PROMPT_DATE', 'ORDDT', 'SALE_DATE'].forEach(function (k) { $('#' + k).val(iso(H[k])); });
+    $('#BROKERAGE_RATE').val(H.BROKERAGE_RATE ? String(num(H.BROKERAGE_RATE)) : '');
+    $('#BROKERAGE').val(H.BROKERAGE ? f2(H.BROKERAGE) : '');
+    $('#TOT_GSTAMT_M').val(f2(H.TOT_GSTAMT_M || 0));
+    $('#gridTable').toggleClass('no-jst', !IS_JST);
+
+    (function initDate() {
+        var maxDt = TODAY < FY_END ? TODAY : FY_END;
+        var minDt = FY_START;
+        if (MIN_DOC && MIN_DOC > minDt) minDt = MIN_DOC;
+        var val = IS_EDIT ? iso(H.DESP_DATE) : iso(H.DESP_DATE) || maxDt;
+        if (!IS_EDIT) { if (val > maxDt) val = maxDt; if (val < minDt) val = minDt; }
+        $('#DESP_DATE').attr('min', minDt).attr('max', maxDt).val(val).data('prev', val);
+        $('#ISSUE_DT, #REMOVAL_DT').attr('max', TODAY);
+        $('#ORDDT').attr('max', TODAY);
+    })();
+
+    // VB txtSaleType_Validate / Form_Activate: what depends on the sale type.
+    function applySaleTypeUi() {
+        $('.cust-box').toggle(oneType());
+        $('.gst-box').toggle(oneType() || isAuction());
+        $('#gridTable').toggleClass('no-extra', !(isAuction() || saleType() === '1SB' || LOCA === 'ROS'));
+        $('#basedOnBox').toggle(oneType());
+    }
+
+    function applyModeUi() {
+        var locked = headLocked();
+        $('#DESP_NO').prop('readonly', IS_EDIT || IS_VIEW);
+        ['SALE_TYPE', 'BILL_TO_PARTY', 'PCODE'].forEach(function (id) {
+            var canPick = !locked && (id !== 'SALE_TYPE' || (!AUCTION_SCREEN && num(H.SALE_TYPE_COUNT) > 0));
+            if (!canPick) dropPicker($('#' + id));
+            $('#' + id).prop('readonly', !canPick).attr('placeholder', canPick ? 'Click to select' : '');
+        });
+        $('#btnSaleNo').prop('disabled', locked);
+        $('#SALE_DATE').prop('readonly', IS_EDIT || IS_VIEW);
+        $('#btnSelectItems, #btnRemoveRows').toggleClass('is-disabled', IS_VIEW);
+        if (IS_VIEW) {
+            $('input, select, textarea').not('#itemSearch, #saleSearch').prop('disabled', true);
+            $('#btnAdjustGst').hide();
+        }
+        applySaleTypeUi();
+    }
+
+    // ---------------------------------------------------------------- lookups
+    // Simple code / name lookups are jquery.inputpicker dropdowns (Root UI convention, CLAUDE.md
+    // "Lookup pickers"): anchored under the field, paged, and searched server-side on EVERY column
+    // shown (the MVC picker actions take (q, limit, ..., p) and reply { data, count }). The first
+    // field is the value written to the box.
+    var CN = [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Name' }];
+    var PARTY_FIELDS = [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Name' }, { name: 'ADD1', text: 'Address' }, { name: 'DESTI', text: 'Destination' },
+                        { name: 'GST_NO', text: 'GST No' }, { name: 'CITY', text: 'City' }, { name: 'TYPE', text: 'Type' }, { name: 'STATE_CODE', text: 'State' }];
+    var LOOKUPS = {
+        saleType: { url: URL.saleType, fields: CN, params: function () { return { unit: UNIT }; } },
+        party: { url: URL.party, fields: PARTY_FIELDS },
+        customer: { url: URL.customer, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Name' }, { name: 'CITY', text: 'City' }, { name: 'GST_NO', text: 'GST No' }],
+                    params: function () { return { broker: $('#BROK_CODE').val() }; } },
+        centre: { url: URL.centre, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Name' }, { name: 'STATE_CODE', text: 'State' }, { name: 'GST_NO', text: 'GST No' }] },
+        broker: { url: URL.broker, fields: CN, params: function () { return { unit: UNIT, saleType: saleType() }; } },
+        transporter: { url: URL.transporter, fields: CN },
+        destination: { url: URL.destination, fields: CN },
+        bank: { url: URL.bank, fields: CN },
+        mark: { url: URL.mark, fields: CN },
+        category: { url: URL.category, fields: CN },
+        gst: { url: URL.gst, fields: CN },
+        tds: { url: URL.tds, fields: CN, params: function () { return { unit: UNIT }; } }
+    };
+
+    // The row the user picked, looked up in the data the dropdown last loaded. This copy of the plugin
+    // writes the picked value into the original input and fires "change" on it; it does not hand the
+    // row to a select handler, so read it back by the picked value.
+    function pickedRow($input, cfg) {
+        var key = cfg.fields[0].name, v = String($input.val() == null ? '' : $input.val()), data = [];
+        try { data = $input.inputpicker('data') || []; } catch (e) { data = []; }
+        for (var i = 0; i < data.length; i++) { if (String(data[i][key]) === v) return data[i]; }
+        return null;
+    }
+    // Open the dropdown AND refresh its rows (the plugin only re-renders the list on a keystroke).
+    function showPickerList($orig) {
+        $orig.inputpicker('show');
+        $orig.next('.inputpicker-overflow-hidden').find('input').trigger($.Event('keyup', { keyCode: 0 }));
+    }
+    // Show `code` in an inputpicker-backed box after it was set from code.
+    function setPickerText($orig, code) {
+        $orig.val(code);
+        $orig.next('.inputpicker-overflow-hidden').find('input.inputpicker-input').val(code);
+    }
+    // Detach the dropdown again (fields that lock, or whose list depends on another field).
+    function dropPicker($orig) {
+        if (!$orig.hasClass('inputpicker-original')) return;
+        try { $orig.inputpicker('destroy'); } catch (e) { }
+        $orig.next('.inputpicker-overflow-hidden').remove();
+        $orig.removeClass('inputpicker-original').css({ position: '', top: '' });
+        $('.inputpicker-wrapped-list').remove();
+    }
+
+    function openLookup(key, $input, onSelect) {
+        var cfg = LOOKUPS[key];
+        $('.inputpicker-wrapped-list').remove();
+        // The class the plugin puts on the original input is the "already initialised" test. Showing is
+        // deferred a tick: the click's own bubbling would otherwise hide the list straight away.
+        if ($input.hasClass('inputpicker-original')) {
+            setTimeout(function () { showPickerList($input); }, 0);
+            return;
+        }
+        $input.inputpicker({
+            url: cfg.url,
+            urlParam: cfg.params ? cfg.params() : {},
+            fields: cfg.fields,
+            fieldText: cfg.fields[0].name,
+            fieldValue: cfg.fields[0].name,
+            headShow: true,
+            filterOpen: true,
+            autoOpen: true,
+            pagination: true,
+            pageField: 'p',
+            pageLimitField: 'limit',
+            pageLimit: 10,
+            pageCountField: 'count',
+            width: 'auto',
+            urlDelay: 0.2
+        });
+        setTimeout(function () { showPickerList($input); }, 0);
+
+        function deliver(row) { if (row && onSelect) onSelect(row); }
+        $input.off('inputpicker.select').on('inputpicker.select', function (e, row) {
+            deliver(row);
+            $(this).inputpicker('hide');
+        });
+        $input.off('change.ipk').on('change.ipk', function () { deliver(pickedRow($input, cfg)); });
+    }
+
+    // Header pickers: code box + read-only name beside it. `after` runs once the pick is applied.
+    function bindHeaderPicker(id, key, after, canOpen) {
+        $('#' + id).on('click focus', function () {
+            if (IS_VIEW || $(this).prop('readonly') || (canOpen && !canOpen())) return;
+            openLookup(key, $(this), function (row) {
+                $('#' + id + '_disp').val(row.NAME || '');
+                if (after) after(row);
+            });
+        });
+        // Clearing the box clears the name (optional fields can be emptied).
+        $('#' + id).on('change.clear', function () { if (!$(this).val()) { $('#' + id + '_disp').val(''); if (after) after(null); } });
+    }
+
+    // ---------------------------------------------------------------- lines
+    var NUM_FIELDS = ['BAG_CHEST', 'NET_WT', 'TNET_WT', 'TGROSS_WT', 'INSRATE', 'INSURANCE', 'EXTRA_BILLED_WT', 'BILL_QTY', 'SAMPLE_QTY', 'OTHER_QTY', 'RATE', 'AMOUNT',
+                      'DISC_PER', 'DISCOUNT', 'CGST_RT', 'CGST_AMT', 'SGST_RT', 'SGST_AMT', 'IGST_RT', 'IGST_AMT', 'TCS_RATE', 'TCS_AMT', 'TOT_AMT', 'DAMAGE_QTY'];
+    function newRow(src) {
+        var r = $.extend({
+            INVNO: '', PACK_DATE: '', GRADE: '', GRADE_NAME: '', MARK: '', MARK_NAME: '', SEASON: '', CAT: '',
+            ORDER_DOCNO: '', ORDER_DOCDT: '', DAMAGE_CHECK: '', AWR_DOCNO: '', AWR_DATE: '', WAREHOUSE: '', SALE_SRLNO: 0,
+            SAUDA_DOCNO: '', SAUDA_DOCDT: '', BUYER_WH_CODE: '', DAMAGES: [], _saved: false
+        }, src || {});
+        NUM_FIELDS.forEach(function (k) { r[k] = rcol(k, r[k]); });
+        ['PACK_DATE', 'ORDER_DOCDT', 'AWR_DATE', 'SAUDA_DOCDT'].forEach(function (k) { r[k] = iso(r[k]); });
+        ['INVNO', 'GRADE', 'MARK', 'SEASON', 'CAT', 'ORDER_DOCNO', 'AWR_DOCNO', 'WAREHOUSE', 'SAUDA_DOCNO', 'BUYER_WH_CODE', 'DAMAGE_CHECK'].forEach(function (k) { r[k] = r[k] == null ? '' : String(r[k]); });
+        if (r.INSRATE === 0 && r.TNET_WT > 0 && r.INSURANCE) r.INSRATE = r2(r.INSURANCE / r.TNET_WT);   // VB dtload
+        if (r._oldBag === undefined) r._oldBag = r.BAG_CHEST;       // VB oldbag_chest
+        if (r._oldTag === undefined) r._oldTag = r._saved ? r.BAG_CHEST : 0;   // VB OldTag
+        r._cid = ++seq;
+        return r;
+    }
+    // VB damage column: "Damage" when the lot has damaged packages at AWR (a saved row: when its detail was checked).
+    function isDamage(r) { return r._saved ? r.DAMAGE_CHECK === 'Y' : r.DAMAGE_QTY > 0; }
+
+    // VB PICK_RATE result for the row's grade -> discount, GST, TCS and total.
+    function applyTax(r) {
+        var rt = RATES[r.GRADE];
+        if (rt) { r.CGST_RT = r2(rt.CGST_RT); r.SGST_RT = r2(rt.SGST_RT); r.IGST_RT = r2(rt.IGST_RT); r.TCS_RATE = r3(rt.TCS_RATE); }
+        if (!IS_JST) r.DISC_PER = 0;   // VB: the discount columns exist at JST only
+        r.DISCOUNT = r2(r.AMOUNT * r.DISC_PER / 100);
+        var amt = r.AMOUNT - r.DISCOUNT;
+        r.CGST_AMT = r2(amt * r.CGST_RT / 100);
+        r.SGST_AMT = r2(amt * r.SGST_RT / 100);
+        r.IGST_AMT = r2(amt * r.IGST_RT / 100);
+        r.TCS_AMT = r2((amt + r.CGST_AMT + r.SGST_AMT + r.IGST_AMT) * r.TCS_RATE / 100);
+        r.TOT_AMT = r2(amt + r.CGST_AMT + r.SGST_AMT + r.IGST_AMT + r.TCS_AMT);
+    }
+    // VB DATAGRID1_BeforeColUpdate (DoCalc): Bill Qty = Inv. Kgs + Extra Billed Wt - (Sample + Other);
+    // Basic = Bill Qty x Rate.
+    function recalc(r) {
+        r.BILL_QTY = r3(r.TNET_WT + r.EXTRA_BILLED_WT - (r.SAMPLE_QTY + r.OTHER_QTY));
+        r.AMOUNT = r2(r.BILL_QTY * r.RATE);
+        applyTax(r);
+    }
+    function onEdit(r, field, oldValue) {
+        if (field === 'INSRATE') { r.INSURANCE = r2(r.TNET_WT * r.INSRATE); return; }
+        if (field === 'BAG_CHEST') {
+            var perBag = r.TGROSS_WT / (oldValue === 0 ? 1 : oldValue);
+            r.TNET_WT = r2(r.BAG_CHEST * r.NET_WT);
+            r.TGROSS_WT = r2(r.BAG_CHEST * perBag);
+        }
+        recalc(r);
+    }
+
+    // VB Form_Load: Bags / Inv. Kgs / Rate / Disc % are editable at JST only; Sample / Other always;
+    // Extra Billed Wt when shown; Ins. Rate once a buyer (type 03) or a broker of a '1..' type is in.
+    function editable(col) {
+        if (IS_VIEW) return false;
+        if (col === 'INSRATE') return BILL_TYPE === '03' || SHIP_TYPE === '03' || (oneType() && !!$('#BROK_CODE').val());
+        if (col === 'SAMPLE_QTY' || col === 'OTHER_QTY') return true;
+        if (col === 'EXTRA_BILLED_WT') return isAuction() || saleType() === '1SB' || LOCA === 'ROS';
+        if (col === 'BAG_CHEST' || col === 'TNET_WT' || col === 'RATE' || col === 'DISC_PER') return IS_JST;
+        return false;
+    }
+    var EDIT_COLS = ['BAG_CHEST', 'TNET_WT', 'INSRATE', 'EXTRA_BILLED_WT', 'SAMPLE_QTY', 'OTHER_QTY', 'RATE', 'DISC_PER'];
+    function numInput(r, col) {
+        return '<input type="text" inputmode="decimal" class="num f-' + col + '" data-col="' + col + '" value="' + fcol(col, r[col]) + '"' + (editable(col) ? '' : ' readonly tabindex="-1"') + ' />';
+    }
+    function ro(col, r, cls) { return '<td class="num c-' + col + (cls ? ' ' + cls : '') + '">' + fcol(col, r[col]) + '</td>'; }
+    function damageCell(r) {
+        return isDamage(r) ? '<a class="dmg-link" title="Damage &amp; Shortage Details">Damage</a>' + (r.DAMAGE_CHECK === 'Y' ? ' <i class="fa fa-check" title="Checked"></i>' : '') : 'No Damage';
+    }
+
+    function renderGrid() {
+        var $tb = $('#gridBody').empty();
+        rows.forEach(function (r, i) {
+            r.SL_NO = i + 1;
+            var tr = $('<tr data-cid="' + r._cid + '"></tr>');
+            tr.append('<td><input type="checkbox" class="rowChk" ' + (IS_VIEW ? 'disabled' : '') + ' /></td>');
+            tr.append('<td>' + r.SL_NO + '</td>');
+            tr.append('<td title="' + esc(r.MARK) + '">' + esc(r.MARK_NAME || r.MARK) + '</td>');
+            tr.append('<td>' + esc(r.INVNO) + '</td>');
+            tr.append('<td>' + esc(dmy(r.PACK_DATE)) + '</td>');
+            tr.append('<td title="' + esc(r.GRADE) + '">' + esc(r.GRADE_NAME || r.GRADE) + '</td>');
+            tr.append('<td>' + esc(r.SEASON) + '</td>');
+            tr.append(ro('NET_WT', r));
+            tr.append('<td class="num">' + numInput(r, 'BAG_CHEST') + '</td>');
+            tr.append('<td class="num">' + numInput(r, 'TNET_WT') + '</td>');
+            tr.append(ro('TGROSS_WT', r));
+            tr.append('<td class="num">' + numInput(r, 'INSRATE') + '</td>');
+            tr.append(ro('INSURANCE', r));
+            tr.append('<td class="num c-extra">' + numInput(r, 'EXTRA_BILLED_WT') + '</td>');
+            tr.append(ro('BILL_QTY', r));
+            tr.append('<td class="num">' + numInput(r, 'SAMPLE_QTY') + '</td>');
+            tr.append('<td class="num">' + numInput(r, 'OTHER_QTY') + '</td>');
+            tr.append('<td class="num">' + numInput(r, 'RATE') + '</td>');
+            tr.append(ro('AMOUNT', r));
+            tr.append('<td class="num c-jst">' + numInput(r, 'DISC_PER') + '</td>');
+            tr.append(ro('DISCOUNT', r, 'c-jst'));
+            ['CGST_RT', 'CGST_AMT', 'SGST_RT', 'SGST_AMT', 'IGST_RT', 'IGST_AMT', 'TCS_RATE', 'TCS_AMT', 'TOT_AMT'].forEach(function (c) { tr.append(ro(c, r)); });
+            tr.append('<td class="c-DAMAGE">' + damageCell(r) + '</td>');
+            tr.append(ro('DAMAGE_QTY', r));
+            // BUYER_WH_CODE is VARCHAR2(10).
+            tr.append('<td class="c-jst"><input type="text" class="f-BUYER_WH_CODE" maxlength="10" value="' + esc(r.BUYER_WH_CODE) + '"' + (IS_VIEW ? ' readonly tabindex="-1"' : '') + ' /></td>');
+            tr.append('<td class="c-jst">' + esc(r.WAREHOUSE) + '</td>');
+            $tb.append(tr);
+        });
+        if (!rows.length) $tb.append('<tr><td colspan="34" style="text-align:center;color:#666;">' +
+            (AUCTION_SCREEN ? 'Pick the Sale Centre, the Bill To / Ship To parties and the Auction Sale No, then use "Select Garden Invoice".'
+                            : 'Pick the Sale Type, the Sale Centre and the Bill To / Ship To parties, then use "Select Garden Invoice".') + '</td></tr>');
+        applyModeUi();
+        refreshTotals();
+    }
+
+    var RO_COLS = ['NET_WT', 'TGROSS_WT', 'INSURANCE', 'BILL_QTY', 'AMOUNT', 'DISCOUNT', 'CGST_RT', 'CGST_AMT', 'SGST_RT', 'SGST_AMT', 'IGST_RT', 'IGST_AMT',
+                   'TCS_RATE', 'TCS_AMT', 'TOT_AMT', 'DAMAGE_QTY'];
+    function refreshRow(r, skipEl) {
+        var $tr = $('#gridBody tr[data-cid="' + r._cid + '"]');
+        EDIT_COLS.forEach(function (c) {
+            var el = $tr.find('input[data-col="' + c + '"]')[0];
+            if (el && el !== skipEl) el.value = fcol(c, r[c]);
+        });
+        RO_COLS.forEach(function (c) { $tr.find('.c-' + c).text(fcol(c, r[c])); });
+        $tr.find('.c-DAMAGE').html(damageCell(r));
+        refreshTotals();
+    }
+
+    function totals() {
+        var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0, EXTRA_BILLED_WT: 0, BILL_QTY: 0, SAMPLE_QTY: 0, OTHER_QTY: 0, AMOUNT: 0, DISCOUNT: 0, CGST_AMT: 0, SGST_AMT: 0, IGST_AMT: 0, TCS_AMT: 0, TOT_AMT: 0 };
+        rows.forEach(function (r) { Object.keys(t).forEach(function (k) { t[k] += num(r[k]); }); });
+        t.GST = r2(t.CGST_AMT + t.SGST_AMT + t.IGST_AMT);
+        return t;
+    }
+    function refreshTotals() {
+        var t = totals();
+        $('#ftBag').text(fc(t.BAG_CHEST)); $('#ftTNet').text(f3(t.TNET_WT)); $('#ftGross').text(f3(t.TGROSS_WT)); $('#ftExtra').text(f3(t.EXTRA_BILLED_WT));
+        $('#ftQty').text(f3(t.BILL_QTY)); $('#ftSample').text(f3(t.SAMPLE_QTY)); $('#ftOther').text(f3(t.OTHER_QTY)); $('#ftAmt').text(f2(t.AMOUNT));
+        $('#ftDisc').text(f2(t.DISCOUNT));
+        $('#ftCgst').text(f2(t.CGST_AMT)); $('#ftSgst').text(f2(t.SGST_AMT)); $('#ftIgst').text(f2(t.IGST_AMT)); $('#ftTcs').text(f2(t.TCS_AMT));
+        $('#ftTot').text(f2(t.TOT_AMT));
+        $('#TOTAL_disp').val(f2(t.TOT_AMT));
+        $('#TOT_GST_SYS').val(f2(t.GST));
+        // VB: brokerage = Basic total x rate %, rounded to the rupee; none for an own-unit Bill To.
+        var rate = BILL_TYPE === '01' ? 0 : num($('#BROKERAGE_RATE').val());
+        $('#BROKERAGE').val(!$('#BROK_CODE').val() || !rate ? '' : f2(r0(t.AMOUNT * rate / 100)));
+        refreshGstDiff();
+    }
+    // VB txtTotGST_Validate: show the difference between the invoice's GST and the system's.
+    function refreshGstDiff() {
+        var manual = num($('#TOT_GSTAMT_M').val()), diff = r2(manual - num($('#TOT_GST_SYS').val()));
+        var show = !IS_VIEW && (oneType() || isAuction()) && manual > 0 && diff !== 0 && rows.length > 0;
+        $('#gstDiffText').text(show ? 'Difference In GST Amount ' + f2(diff) : '');
+        $('#btnAdjustGst').toggle(show);
+    }
+    $('#TOT_GSTAMT_M').on('change', function () { this.value = f2(this.value); refreshGstDiff(); });
+    $('#BROKERAGE_RATE').on('change', function () { this.value = String(rn(this.value, 4)); refreshTotals(); });
+
+    // VB Command10 "Adjust Difference GST": recalculate, then put a difference of up to 1.00 on the
+    // first line (Save does the same server-side).
+    $('#btnAdjustGst').on('click', function () {
+        if (IS_VIEW || !rows.length) return;
+        rows.forEach(applyTax);
+        var manual = num($('#TOT_GSTAMT_M').val()), diff = r2(manual - totals().GST);
+        if (Math.abs(diff) > 1) { rows.forEach(function (r) { refreshRow(r); }); showAlert('Please Check the GST Amount Which has been entered from Invoice'); return; }
+        if (manual > 0 && diff !== 0) {
+            var f = rows[0];
+            if (f.CGST_RT > 0) { var half = r2(diff / 2); f.CGST_AMT = r2(f.CGST_AMT + half); f.SGST_AMT = r2(f.SGST_AMT + (diff - half)); }
+            else f.IGST_AMT = r2(f.IGST_AMT + diff);
+            f.TOT_AMT = r2(f.AMOUNT - f.DISCOUNT + f.CGST_AMT + f.SGST_AMT + f.IGST_AMT + f.TCS_AMT);
+        }
+        rows.forEach(function (r) { refreshRow(r); });
+    });
+
+    function findRow(cid) { return rows.find(function (r) { return r._cid == cid; }); }
+
+    $('#gridBody').on('change', 'input.num', function () {
+        var r = findRow($(this).closest('tr').data('cid')); if (!r) return;
+        var col = $(this).data('col'), old = r[col];
+        r[col] = rcol(col, this.value);
+        if (col === 'DISC_PER' && r[col] > 100) r[col] = 100;
+        onEdit(r, col, old);
+        this.value = fcol(col, r[col]);
+        refreshRow(r, this);
+    });
+    $('#gridBody').on('focus', 'input.num:not([readonly])', function () { var el = this; setTimeout(function () { el.select(); }, 0); });
+    $('#gridBody').on('change', 'input.f-BUYER_WH_CODE', function () {
+        var r = findRow($(this).closest('tr').data('cid')); if (r) r.BUYER_WH_CODE = $.trim(this.value);
+    });
+    // Enter moves to the next editable cell, as in the VB6 grid.
+    $('#gridBody').on('keydown', 'input', function (e) {
+        if (e.which !== 13) return;
+        e.preventDefault();
+        $(this).trigger('change');
+        var $all = $('#gridBody input:not([readonly]):not([type="checkbox"]):visible');
+        var i = $all.index(this);
+        if (i >= 0 && i < $all.length - 1) $all.eq(i + 1).focus();
+    });
+
+    $('#chkAll').on('change', function () { $('.rowChk').prop('checked', $(this).is(':checked')); });
+    $('#btnRemoveRows').on('click', function () {
+        if ($(this).hasClass('is-disabled')) return;
+        var cids = $('.rowChk:checked').map(function () { return $(this).closest('tr').data('cid'); }).get();
+        if (!cids.length) { showAlert('Select at least one row to remove.'); return; }
+        rows = rows.filter(function (r) { return cids.indexOf(r._cid) === -1; });
+        $('#chkAll').prop('checked', false);
+        renderGrid();
+    });
+
+    // ---------------------------------------------------------------- rates
+    function fetchRates(grades, gstCodes, done) {
+        var bill = $('#BILL_TO_PARTY').val(), sc = $('#SALE_CENTRE').val();
+        grades = (grades || []).filter(function (g, i, a) { return g && a.indexOf(g) === i; });
+        gstCodes = (gstCodes || []).filter(function (g, i, a) { return g && a.indexOf(g) === i; });
+        if (!bill || !sc) { if (done) done(); return; }
+        $.getJSON(URL.rates, { unit: UNIT, saleCentre: sc, billTo: bill, shipTo: $('#PCODE').val(), docdt: $('#DESP_DATE').val(),
+                               grades: grades.join(','), gstCodes: gstCodes.join(',') })
+            .done(function (d) {
+                d = d || {};
+                $.extend(RATES, d.rates || {});
+                $.extend(BR_RATES, d.brRates || {});
+                if (d.BILL_TYPE !== undefined) BILL_TYPE = d.BILL_TYPE || '';
+                if (d.BILL_STATE !== undefined) BILL_STATE = d.BILL_STATE || '';
+                if (done) done(d);
+            })
+            .fail(function (x) { failMsg(x, 'Could not load GST rates.'); });
+    }
+    // Party / centre / date changed: every line (and brokerage row) is re-rated (VB recomputes them all on Save anyway).
+    function reRateAll(done) {
+        RATES = {}; BR_RATES = {};
+        fetchRates(rows.map(function (r) { return r.GRADE; }), brGstCodes(), function (d) {
+            rows.forEach(applyTax); renderGrid(); brRecalcAll();
+            if (done) done(d);
+        });
+    }
+
+    // ---------------------------------------------------------------- header pickers
+    bindHeaderPicker('SALE_TYPE', 'saleType', function () {
+        dropPicker($('#BROK_CODE'));            // the broker list depends on the sale type (TAG Y / N outside JST)
+        applySaleTypeUi(); renderGrid();
+    });
+    bindHeaderPicker('SALE_CENTRE', 'centre', function () { reRateAll(); });
+    // VB txt_billCd_Validate: the Bill To party drives state / type (GST, TCS, challan).
+    bindHeaderPicker('BILL_TO_PARTY', 'party', function (p) {
+        if (p && !p.GST_NO) showAlert('GST No not exist for this Party');
+        if (p && !p.STATE_CODE) showAlert('State Code of Party ' + p.CODE + ' is blank ! Set it in the party master before saving.');
+        BILL_TYPE = p ? (p.TYPE || '') : '';
+        BILL_STATE = p ? (p.STATE_CODE || '') : '';
+        reRateAll();
+    });
+    bindHeaderPicker('PCODE', 'party', function (p) { SHIP_TYPE = p ? (p.TYPE || '') : ''; reRateAll(); });
+    // VB txtBroker_Validate: on a new invoice picking a broker sets the brokerage rate to 1 %.
+    bindHeaderPicker('BROK_CODE', 'broker', function (b) {
+        dropPicker($('#PARTY_CODE'));          // the Party list is the broker's customers
+        if (b && !IS_EDIT) $('#BROKERAGE_RATE').val('1');
+        refreshTotals();
+        renderGrid();
+    });
+    bindHeaderPicker('PARTY_CODE', 'customer');
+    bindHeaderPicker('TPT', 'transporter');
+    bindHeaderPicker('DEST_TO', 'destination');
+    bindHeaderPicker('BANK_ACODE', 'bank');
+    bindHeaderPicker('TDS_CODE', 'tds');
+
+    // VB date_txt_Validate: a changed invoice date carries to the issue / removal dates and re-rates (TCS is date-bound).
+    $('#DESP_DATE').on('change', function () {
+        var d = this.value, prev = $(this).data('prev');
+        if (!d) return;
+        if (d > TODAY) { showAlert('Can not enter future date ' + dmy(d)); this.value = prev; return; }
+        if (d < FY_START || d > FY_END) { showAlert('Date not between financial Year'); this.value = prev; return; }
+        if (d !== prev) { $('#ISSUE_DT').val(d); $('#REMOVAL_DT').val(d); issueChanged(); }
+        $(this).data('prev', d);
+        if (rows.length) reRateAll();
+    });
+    // VB txt_idate_Validate: prompt date = (invoice date for state 19 / JST, else issue date) + (prompt
+    // days of the order, else 14 for '1..' types / 30) - 1. A cleared issue date clears it outside state 19.
+    var PROMPT_DAYS = 0;
+    function issueChanged() {
+        var i = $('#ISSUE_DT').val(), d = $('#DESP_DATE').val();
+        if (!i) { if (BILL_STATE !== '19') $('#PROMPT_DATE').val(''); return; }
+        if (i < d) { showAlert('Can not enter earlier than invoice Date ' + dmy(d)); $('#ISSUE_DT').val(''); return; }
+        var base = (BILL_STATE === '19' || IS_JST) ? d : i;
+        $('#PROMPT_DATE').val(addDays(base, (PROMPT_DAYS > 0 ? PROMPT_DAYS : (oneType() ? 14 : 30)) - 1));
+    }
+    $('#ISSUE_DT').on('change', issueChanged);
+
+    // ---------------------------------------------------------------- Auction Sale No popup
+    // VB txtSaleNo_buttonclick: the catalogue's unbilled sale / broker / mark groups; the pick fills
+    // Sale No, Sale Date, Prompt Date, Broker and the Mark filter of Select Data.
+    var sales = [];
+    function renderSales() {
+        var term = $.trim($('#saleSearch').val()).toUpperCase();
+        var cols = [['SALE_NO', 'Sale No'], ['SALE_DATE', 'Sale Date', 'date'], ['PROMPT_DATE', 'Prompt Date', 'date'], ['BROKER_NAME', 'Broker'],
+                    ['MARK_NAME', 'Mark'], ['SALE_CENTRE_NAME', 'Sale Centre'], ['CATEGORY', 'Category'], ['DOCNO', 'Doc No'], ['PEND_BAG', 'Pending Bags', 'cnt']];
+        var shown = sales.filter(function (s) {
+            if (!term) return true;
+            return cols.map(function (c) { return c[2] === 'date' ? dmy(s[c[0]]) : String(s[c[0]] == null ? '' : s[c[0]]); }).concat([s.BROKER || '', s.MARK || '']).join(' ').toUpperCase().indexOf(term) >= 0;
+        });
+        var html = '<table><thead><tr>' + cols.map(function (c) { return '<th' + (c[2] === 'cnt' ? ' class="num"' : '') + '>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>';
+        shown.forEach(function (s) {
+            html += '<tr data-i="' + s._i + '">' + cols.map(function (c) {
+                var v = c[2] === 'date' ? dmy(s[c[0]]) : c[2] === 'cnt' ? fc(s[c[0]]) : s[c[0]];
+                return '<td' + (c[2] === 'cnt' ? ' class="num"' : '') + '>' + esc(v) + '</td>';
+            }).join('') + '</tr>';
+        });
+        html += '</tbody></table>';
+        if (!sales.length) html += '<p class="picker-empty">No "Sold" catalogue lot is left to bill.</p>';
+        else if (!shown.length) html += '<p class="picker-empty">No row matches the search.</p>';
+        $('#saleBody').html(html);
+    }
+    function closeSales() { $('#pickerOverlay, #salePicker').fadeOut(120); }
+    $('#btnSaleNo, #SALE_NO').on('click', function () {
+        if (IS_VIEW || headLocked()) return;
+        $('#saleSearch').val('');
+        $('#saleBody').html('<p class="picker-empty">Loading...</p>');
+        $('#pickerOverlay, #salePicker').fadeIn(120);
+        $.getJSON(URL.auctionSales, { unit: UNIT })
+            .done(function (data) { sales = (data || []).map(function (s, i) { s._i = i; return s; }); renderSales(); setTimeout(function () { $('#saleSearch').focus(); }, 150); })
+            .fail(function (x) { closeSales(); failMsg(x); });
+    });
+    $('#saleSearch').on('input', renderSales);
+    $('#saleClose').on('click', closeSales);
+    $('#saleBody').on('click', 'tr[data-i]', function () {
+        var s = sales[$(this).data('i')];
+        $('#SALE_NO').val(s.SALE_NO || '');
+        $('#SALE_DATE').val(iso(s.SALE_DATE));
+        $('#PROMPT_DATE').val(iso(s.PROMPT_DATE));
+        setPickerText($('#BROK_CODE'), s.BROKER || ''); $('#BROK_CODE_disp').val(s.BROKER_NAME || '');
+        if (s.BROKER && !IS_EDIT) $('#BROKERAGE_RATE').val('1');
+        SALE_MARK = s.MARK || '';
+        setPickerText($('#fltMark'), SALE_MARK);
+        closeSales();
+        refreshTotals();
+    });
+
+    // ---------------------------------------------------------------- Select Garden Invoice popup
+    // Composite, multi-row selection (CLAUDE.md: not an inputpicker). VB grid button -> Command4,
+    // "Refresh" -> Command7 (Mark / Category filters; private: based on Party or Broker), OK -> Command6.
+    var items = [];
+    function pendingParams(mode) {
+        return {
+            unit: UNIT, saleType: saleType(), saleCentre: $('#SALE_CENTRE').val(), billTo: $('#BILL_TO_PARTY').val(),
+            shipTo: $('#PCODE').val(), cust: $('#PARTY_CODE').val(), broker: $('#BROK_CODE').val(), saleNo: $('#SALE_NO').val() || '',
+            docdt: $('#DESP_DATE').val(), mark: $('#fltMark').val(), cat: $('#fltCat').val(), mode: mode || '',
+            basedOn: $('input[name="basedOn"]:checked').val() || 'party'
+        };
+    }
+    function itemKey(d) { return [d.INVNO, iso(d.PACK_DATE), d.GRADE, d.MARK, d.DOCNO || d.ORDER_DOCNO || ''].join('|'); }
+    function loadItems(mode) {
+        $('#itemBody').html('<p class="picker-empty">Loading...</p>');
+        $.getJSON(URL.pending, pendingParams(mode))
+            .done(function (data) {
+                var have = {}; rows.forEach(function (r) { have[itemKey(r)] = true; });
+                items = (data || []).filter(function (d) { return !have[itemKey(d)]; }).map(function (d, i) { d._i = i; d._sel = false; return d; });
+                renderItems();
+                setTimeout(function () { $('#itemSearch').focus(); }, 150);
+            })
+            .fail(function (x) { closeItems(); failMsg(x); });
+    }
+    function openItems() {
+        $('#itemSearch').val(''); setPickerText($('#fltMark'), isAuction() ? SALE_MARK : ''); setPickerText($('#fltCat'), '');
+        $('#pickerOverlay, #itemPicker').fadeIn(120);
+        loadItems('');
+    }
+    function closeItems() { $('#pickerOverlay, #itemPicker').fadeOut(120); $('.inputpicker-wrapped-list').hide(); }
+    var ITEM_COLS = [['MARK_NAME', 'Mark'], ['INVNO', 'Inv No.'], ['LOTNO', 'Lot No'], ['PACK_DATE', 'Pack Date', 'date'], ['GRADE_NAME', 'Grade'], ['CATEGORY', 'Category'],
+                     ['LIST_BAG', 'Bags', 'cnt'], ['LIST_NET', 'Net Wt.', 'qty'], ['LIST_TNET', 'Inv. Kgs', 'qty'], ['LIST_GROSS', 'Gross Wt.', 'qty'],
+                     ['RATE', 'Rate', 'num'], ['PARTY', 'Party'], ['DOCNO', 'Order No'], ['DOCDT', 'Order Date', 'date'], ['SAUDA_DOCNO', 'Sauda No']];
+    function isNumKind(k) { return k === 'num' || k === 'qty' || k === 'cnt'; }
+    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'qty' ? f3(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function itemText(d) { return ITEM_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.GRADE || '', d.MARK || '']).join(' ').toUpperCase(); }
+    function renderItems() {
+        var term = $.trim($('#itemSearch').val()).toUpperCase();
+        var shown = items.filter(function (d) { return !term || itemText(d).indexOf(term) >= 0; });
+        if (!items.length) { showItemsEmpty(); return; }
+        var html = '<table><thead><tr><th style="width:30px;">SEL</th>' + ITEM_COLS.map(function (c) { return '<th' + (isNumKind(c[2]) ? ' class="num"' : '') + '>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>';
+        shown.forEach(function (d) {
+            html += '<tr data-i="' + d._i + '"><td><input type="checkbox" class="itemChk"' + (d._sel ? ' checked' : '') + ' /></td>' +
+                ITEM_COLS.map(function (c) { return '<td' + (isNumKind(c[2]) ? ' class="num"' : '') + '>' + esc(cellText(d[c[0]], c[2])) + '</td>'; }).join('') + '</tr>';
+        });
+        html += '</tbody></table>';
+        if (!shown.length) html += '<p class="picker-empty">No row matches the search.</p>';
+        $('#itemBody').html(html);
+    }
+    // Empty list: say which link of the chain is missing (confirmation / AWR receipt / stock) instead
+    // of an empty 15-column grid.
+    function showItemsEmpty() {
+        var base = isAuction() ? 'No sold lot with stock is pending for this Auction Sale No / Broker.'
+                               : 'No confirmed order with stock is pending for this Sale Centre / Bill To / Ship To / Sale Type.';
+        $('#itemBody').html('<p class="picker-empty">' + esc(base) + '</p>');
+        var q = pendingParams('');
+        // Best effort: a failed hint (e.g. an API without this endpoint) keeps the plain message, no error popup.
+        $.ajax({ url: URL.pendingHint, dataType: 'json', globalError: false,
+                 data: { unit: q.unit, saleType: q.saleType, saleCentre: q.saleCentre, billTo: q.billTo, broker: q.broker, saleNo: q.saleNo } })
+            .done(function (r) { if (r && r.message && !items.length) $('#itemBody').html('<p class="picker-empty" style="max-width:640px;white-space:normal;">' + esc(r.message) + '</p>'); });
+    }
+    $('#itemSearch').on('input', renderItems);
+    $('#itemBody').on('click', 'tr[data-i]', function (e) {
+        var d = items[$(this).data('i')];
+        if (!$(e.target).is('.itemChk')) $(this).find('.itemChk').prop('checked', !d._sel);
+        d._sel = $(this).find('.itemChk').is(':checked');
+    });
+    $('#btnItemAll, #btnItemNone').on('click', function () {
+        var on = this.id === 'btnItemAll';
+        $('#itemBody tr[data-i]').each(function () { items[$(this).data('i')]._sel = on; $(this).find('.itemChk').prop('checked', on); });
+    });
+    $('#itemClose, #btnItemCancel').on('click', closeItems);
+    $('#btnItemRefresh').on('click', function () { loadItems('refresh'); });
+    $('#fltMark').on('click focus', function () { openLookup('mark', $(this)); });
+    $('#fltCat').on('click focus', function () { openLookup('category', $(this)); });
+
+    $('#btnSelectItems').on('click', function () {
+        if ($(this).hasClass('is-disabled')) return;
+        if (!saleType()) { showAlert('Sale Type cannot be blank'); return; }
+        if (!$('#SALE_CENTRE').val()) { showAlert('Select the Sale Centre first.'); return; }
+        if (!isAuction() && !$('#BILL_TO_PARTY').val()) { showAlert('Select the Bill To party first.'); return; }
+        if (isAuction() && !$('#SALE_NO').val()) { showAlert('Sale No cannot be blank'); return; }
+        if (isAuction() && !$('#BROK_CODE').val()) { showAlert('Select the Broker of the auction sale first.'); return; }
+        if (!$('#DESP_DATE').val()) { showAlert('INVALID DATE !'); return; }
+        openItems();
+    });
+
+    // VB Command6_Click: the picked lots become invoice lines (the API sends each lot's line
+    // figures as L_*).
+    $('#btnItemOk').on('click', function () {
+        var sel = items.filter(function (d) { return d._sel; });
+        if (!sel.length) { showAlert('Select at least one row.'); return; }
+        var marks = {}, parties = {};
+        rows.forEach(function (r) { marks[r.MARK] = 1; });
+        sel.forEach(function (d) { marks[d.MARK] = 1; parties[d.PARTY || ''] = 1; });
+        if (Object.keys(marks).length > 1 && saleType() !== '1SH') { showAlert('Multiple Mark can\'t be selected togather'); return; }
+        if (Object.keys(parties).length > 1) { showAlert('Multiple Party can\'t be selected togather'); return; }
+
+        var docdt = $('#DESP_DATE').val();
+        sel.forEach(function (d) {
+            var r = newRow({
+                INVNO: d.INVNO, PACK_DATE: d.PACK_DATE, GRADE: d.GRADE, GRADE_NAME: d.GRADE_NAME, MARK: d.MARK, MARK_NAME: d.MARK_NAME,
+                SEASON: d.SEASON || '', CAT: d.CAT, BAG_CHEST: d.L_BAG, NET_WT: d.L_NET, TNET_WT: d.L_TNET, TGROSS_WT: d.L_TGROSS,
+                BILL_QTY: d.L_BILL, SAMPLE_QTY: d.L_SAMPLE, OTHER_QTY: d.L_OTHER, RATE: d.RATE,
+                ORDER_DOCNO: d.DOCNO, ORDER_DOCDT: d.DOCDT, DAMAGE_QTY: d.DAMAGE, AWR_DOCNO: d.AWR_DOCNO, AWR_DATE: d.AWR_DATE,
+                WAREHOUSE: d.WAREHOUSE, SALE_SRLNO: 1, SAUDA_DOCNO: d.SAUDA_DOCNO, SAUDA_DOCDT: d.SAUDA_DOCNO ? d.SAUDA_DOCDT : '',
+                BUYER_WH_CODE: d.BUYER_WH_CODE
+            });
+            r.AMOUNT = r2(r.BILL_QTY * r.RATE);
+            rows.push(r);
+
+            // Header values the order brings along.
+            if (!isAuction()) {
+                PROMPT_DAYS = num(d.PROMPT_DAY);
+                if (docdt && (BILL_STATE === '19' || IS_JST)) $('#PROMPT_DATE').val(addDays(docdt, PROMPT_DAYS));
+                else if ($('#ISSUE_DT').val()) $('#PROMPT_DATE').val(addDays($('#ISSUE_DT').val(), PROMPT_DAYS));
+            }
+            if (d.TPT) { setPickerText($('#TPT'), d.TPT); $('#TPT_disp').val(d.TPT_NAME || ''); }
+            if (!$('#ORDNO').val()) { $('#ORDNO').val(d.ORDNO || ''); if (d.ORDDT) $('#ORDDT').val(iso(d.ORDDT)); }
+            setPickerText($('#PARTY_CODE'), d.PARTY_CODE || ''); $('#PARTY_CODE_disp').val(d.PARTY || '');
+            if (!$('#BROK_CODE').val() && d.BROKER) { setPickerText($('#BROK_CODE'), d.BROKER); $('#BROK_CODE_disp').val(d.BROKER_NAME || ''); }
+        });
+        closeItems();
+        reRateAll();
+    });
+
+    // ---------------------------------------------------------------- Damage & Shortage Details
+    // VB DamageDetail_Load / Command8_Click. A package not ticked "Ready To Sale" is taken off the line.
+    var dmg = null;   // { row, list }
+    function flag(v) { return v === true || v === 'Y' || v === 1; }
+    function openDamage(r) {
+        $('#damageBody').html('<p class="picker-empty">Loading...</p>');
+        $('#pickerOverlay, #damagePicker').fadeIn(120);
+        $.getJSON(URL.damage, { invno: r.INVNO, mark: r.MARK })
+            .done(function (data) {
+                var list = (r.DAMAGES || []).map(function (d) { return $.extend({}, d); });
+                (data || []).forEach(function (a) {
+                    if (list.some(function (d) { return num(d.BAG_CHEST) === num(a.BAG_CHEST); })) return;
+                    var ok = !(r._oldTag > 0);
+                    list.push({ BAG_CHEST: num(a.BAG_CHEST), WS_QTY: flag(a.WS_QTY), BR_QTY: flag(a.BR_QTY), TR_QTY: flag(a.TR_QTY), SR_QTY: flag(a.SR_QTY),
+                                OS_QTY: flag(a.OS_QTY), SR_KGS: num(a.SR_KGS), REMARK: a.REMARK || '', TAG_OK: ok, _oldOk: ok, DOCNO: a.DOCNO || '', AWR_DATE: iso(a.AWR_DATE) });
+                });
+                dmg = { row: r, list: list };
+                var yn = function (v) { return v ? 'Y' : ''; };
+                var html = '<table><thead><tr><th class="num">Bag No</th><th>WS</th><th>BR</th><th>TR</th><th>SR Pkg</th><th>OS</th><th class="num">SR Kgs</th><th>Remark</th><th>Ready To Sale</th></tr></thead><tbody>';
+                list.forEach(function (d, i) {
+                    html += '<tr data-i="' + i + '"><td class="num">' + fc(d.BAG_CHEST) + '</td><td>' + yn(d.WS_QTY) + '</td><td>' + yn(d.BR_QTY) + '</td><td>' + yn(d.TR_QTY) +
+                        '</td><td>' + yn(d.SR_QTY) + '</td><td>' + yn(d.OS_QTY) + '</td><td class="num">' + f2(d.SR_KGS) + '</td>' +
+                        '<td><input type="text" class="dmgRemark" maxlength="50" value="' + esc(d.REMARK) + '"' + (IS_VIEW ? ' disabled' : '') + ' /></td>' +
+                        '<td><input type="checkbox" class="dmgOk"' + (d.TAG_OK ? ' checked' : '') + (IS_VIEW ? ' disabled' : '') + ' /></td></tr>';
+                });
+                html += '</tbody></table>';
+                if (!list.length) html += '<p class="picker-empty">No damaged package is recorded at AWR for this lot.</p>';
+                $('#damageBody').html(html);
+                $('#btnDamageSave').prop('disabled', IS_VIEW);
+            })
+            .fail(function (x) { closeDamage(); failMsg(x); });
+    }
+    function closeDamage() { $('#pickerOverlay, #damagePicker').fadeOut(120); dmg = null; }
+    $('#damageClose, #btnDamageRevert').on('click', closeDamage);
+    $('#gridBody').on('click', 'a.dmg-link', function () {
+        var r = findRow($(this).closest('tr').data('cid')); if (r) openDamage(r);
+    });
+    $('#btnDamageSave').on('click', function () {
+        if (!dmg || IS_VIEW) return;
+        var r = dmg.row, notReady = 0, srKgs = 0;
+        $('#damageBody tr[data-i]').each(function () {
+            var d = dmg.list[$(this).data('i')];
+            d.REMARK = $.trim($(this).find('.dmgRemark').val());
+            d.TAG_OK = $(this).find('.dmgOk').is(':checked');
+            if (d.TAG_OK) {
+                srKgs += num(d.SR_KGS);
+                if (d._oldOk === false && IS_EDIT) r._oldBag += 1;
+            } else notReady++;
+            d._oldOk = d.TAG_OK;
+        });
+        var oldBag = r._oldBag;
+        r.BAG_CHEST = rc(oldBag - notReady);
+        r.OTHER_QTY = r3(srKgs);
+        if (!IS_JST) r.TNET_WT = r3(r.NET_WT * r.BAG_CHEST);   // VB Command8: outside JST the Inv. Kgs follow the bags
+        if (oldBag > 0) r.TGROSS_WT = r3(r.TGROSS_WT / oldBag * r.BAG_CHEST);
+        r._oldBag = r.BAG_CHEST;
+        // VB Command8: Bill Qty = Inv. Kgs - Other.
+        r.BILL_QTY = r3(r.TNET_WT - r.OTHER_QTY);
+        r.AMOUNT = r2(r.BILL_QTY * r.RATE);
+        applyTax(r);
+        r.DAMAGES = dmg.list.filter(function (d) { return d.WS_QTY || d.BR_QTY || d.TR_QTY || d.SR_QTY || d.OS_QTY || num(d.SR_KGS) !== 0; });
+        r.DAMAGE_CHECK = 'Y';
+        closeDamage();
+        refreshRow(r);
+    });
+
+    // ---------------------------------------------------------------- Brokerage & Tea Board Bill Details
+    // VB Frame5 (CmdBrokerage_Click / TDBGrid4 / TDBGrid3 / Command12_Click). Five rows per grid, as VB.
+    var BR = { B: [], T: [] };
+    function newBr(type, src) {
+        var b = $.extend({ DOC_TYPE: type, DOCNO: '', INVOICENO: '', INVOICEDT: '', SAC_CODE: '', SAC_DESCN: '', TNET_WT: 0, INV_AMOUNT: 0, RATE: 0, AMOUNT: 0,
+                           LOT_MONEY: 0, SERV_CHG: 0, INSP_CHG: 0, RE_INSP_CHG: 0, SELLER_CHG: 0, TAXABLE_AMT: 0, GST_CODE: '', CGST_RT: 0, CGST_AMT: 0,
+                           SGST_RT: 0, SGST_AMT: 0, IGST_RT: 0, IGST_AMT: 0, TOT_AMT: 0, TDS_AMT: 0, TDS_PER: 0, TDS_DETD: 0, TCS_AMT: 0 }, src || {});
+        ['TNET_WT', 'INV_AMOUNT', 'RATE', 'AMOUNT', 'LOT_MONEY', 'SERV_CHG', 'INSP_CHG', 'RE_INSP_CHG', 'SELLER_CHG', 'TAXABLE_AMT', 'CGST_RT', 'CGST_AMT',
+         'SGST_RT', 'SGST_AMT', 'IGST_RT', 'IGST_AMT', 'TOT_AMT', 'TDS_AMT', 'TDS_PER', 'TDS_DETD', 'TCS_AMT'].forEach(function (k) { b[k] = r2(b[k]); });
+        ['DOCNO', 'INVOICENO', 'SAC_CODE', 'SAC_DESCN', 'GST_CODE'].forEach(function (k) { b[k] = b[k] == null ? '' : String(b[k]).trim(); });
+        b.INVOICEDT = iso(b.INVOICEDT);
+        return b;
+    }
+    function padBr() { ['B', 'T'].forEach(function (t) { while (BR[t].length < 5) BR[t].push(newBr(t)); }); }
+    function brGstCodes() { return BR.B.concat(BR.T).map(function (b) { return b.GST_CODE; }).filter(function (c) { return !!c; }); }
+    // VB TDBGrid4 / TDBGrid3 DoCalc (+ PICK_RATE_Br).
+    function brCalc(b) {
+        if (b.DOC_TYPE === 'B') {
+            b.AMOUNT = r2(b.INV_AMOUNT * b.RATE / 100);
+            if (saleType() === '4') b.TCS_AMT = b.AMOUNT;
+            b.TAXABLE_AMT = r2(b.AMOUNT + b.LOT_MONEY + b.SERV_CHG + b.INSP_CHG + b.RE_INSP_CHG + b.SELLER_CHG);
+            b.TDS_DETD = r0(b.TDS_AMT * b.TDS_PER / 100);
+        } else {
+            if (b.RATE) b.AMOUNT = r2(b.TNET_WT * b.RATE); else b.AMOUNT = b.TAXABLE_AMT;
+            b.TAXABLE_AMT = b.AMOUNT;
+        }
+        var rt = BR_RATES[b.GST_CODE] || {};
+        b.CGST_RT = b.GST_CODE ? r2(rt.CGST_RT) : 0; b.SGST_RT = b.GST_CODE ? r2(rt.SGST_RT) : 0; b.IGST_RT = b.GST_CODE ? r2(rt.IGST_RT) : 0;
+        b.CGST_AMT = r2(b.TAXABLE_AMT * b.CGST_RT / 100);
+        b.SGST_AMT = r2(b.TAXABLE_AMT * b.SGST_RT / 100);
+        b.IGST_AMT = r2(b.TAXABLE_AMT * b.IGST_RT / 100);
+        b.TOT_AMT = r2(b.TAXABLE_AMT + b.CGST_AMT + b.SGST_AMT + b.IGST_AMT);
+    }
+    function brRecalcAll() { BR.B.concat(BR.T).forEach(function (b) { if (b.INVOICENO) brCalc(b); }); if ($('#brokeragePicker').is(':visible')) renderBr(); }
+
+    var BR_COLS = {
+        B: [['INVOICENO', 'Invoice No', 'txt', 16, 'w-inv'], ['INVOICEDT', 'Inv. Date', 'date'], ['SAC_CODE', 'SAC Code', 'txt', 10], ['SAC_DESCN', 'SAC Description', 'txt', 50, 'w-sacd'],
+            ['DOCNO', 'Doc No', 'ro'], ['TNET_WT', 'Net Wt.', 'num'], ['INV_AMOUNT', 'Inv. Amount', 'num'], ['RATE', 'Rate %', 'num'], ['AMOUNT', 'Amount', 'ron'],
+            ['LOT_MONEY', 'Lot Money', 'num'], ['SERV_CHG', 'Serv. Chg', 'num'], ['INSP_CHG', 'Insp. Chg', 'num'], ['RE_INSP_CHG', 'Re-Insp. Chg', 'num'],
+            ['SELLER_CHG', 'Seller Chg', 'num'], ['TAXABLE_AMT', 'Taxable Amt', 'ron'], ['GST_CODE', 'GST Code', 'gst'], ['CGST_RT', 'CGST %', 'ron'], ['CGST_AMT', 'CGST Amt', 'ron'],
+            ['SGST_RT', 'SGST %', 'ron'], ['SGST_AMT', 'SGST Amt', 'ron'], ['IGST_RT', 'IGST %', 'ron'], ['IGST_AMT', 'IGST Amt', 'ron'], ['TOT_AMT', 'Total', 'ron'],
+            ['TDS_AMT', 'TDS On', 'num'], ['TDS_PER', 'TDS %', 'num'], ['TDS_DETD', 'TDS Detd', 'ron'], ['TCS_AMT', 'TCS Amt', 'num']],
+        T: [['INVOICENO', 'Invoice No', 'txt', 16, 'w-inv'], ['INVOICEDT', 'Inv. Date', 'date'], ['SAC_CODE', 'SAC Code', 'txt', 10], ['SAC_DESCN', 'SAC Description', 'txt', 50, 'w-sacd'],
+            ['DOCNO', 'Doc No', 'ro'], ['TNET_WT', 'Net Wt.', 'num'], ['INV_AMOUNT', 'Inv. Amount', 'num'], ['RATE', 'Rate', 'num'], ['AMOUNT', 'Amount', 'ron'],
+            ['TAXABLE_AMT', 'Taxable Amt', 'num'], ['GST_CODE', 'GST Code', 'gst'], ['CGST_RT', 'CGST %', 'ron'], ['CGST_AMT', 'CGST Amt', 'ron'],
+            ['SGST_RT', 'SGST %', 'ron'], ['SGST_AMT', 'SGST Amt', 'ron'], ['IGST_RT', 'IGST %', 'ron'], ['IGST_AMT', 'IGST Amt', 'ron'], ['TOT_AMT', 'Total', 'ron']]
+    };
+    function renderBr() {
+        ['B', 'T'].forEach(function (t) {
+            var cols = BR_COLS[t];
+            var html = '<thead><tr><th>Sl.</th>' + cols.map(function (c) { return '<th' + (c[2] === 'num' || c[2] === 'ron' ? ' class="num"' : '') + '>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>';
+            BR[t].forEach(function (b, i) {
+                html += '<tr data-t="' + t + '" data-i="' + i + '"><td>' + (i + 1) + '</td>' + cols.map(function (c) {
+                    var k = c[0], v = b[k], dis = IS_VIEW ? ' disabled' : '';
+                    if (c[2] === 'ro') return '<td>' + esc(v) + '</td>';
+                    if (c[2] === 'ron') return '<td class="num">' + f2(v) + '</td>';
+                    if (c[2] === 'date') return '<td><input type="date" data-k="' + k + '" value="' + esc(v) + '" style="width:140px;"' + dis + ' /></td>';
+                    if (c[2] === 'num') return '<td class="num"><input type="text" class="num" inputmode="decimal" data-dp="2" data-k="' + k + '" value="' + (num(v) ? f2(v) : '') + '"' + dis + ' /></td>';
+                    if (c[2] === 'gst') return '<td><input type="text" class="br-gst" maxlength="3" data-k="' + k + '" value="' + esc(v) + '" autocomplete="off"' + dis + ' /></td>';
+                    return '<td><input type="text" data-k="' + k + '" maxlength="' + c[3] + '" class="' + (c[4] || '') + '" value="' + esc(v) + '"' + dis + ' /></td>';
+                }).join('') + '</tr>';
+            });
+            html += '</tbody>';
+            if (t === 'B') {
+                var sum = function (k) { return BR.B.reduce(function (s, b) { return s + num(b[k]); }, 0); };
+                $('#ftTdsOn').val(f2(sum('TDS_AMT'))); $('#ftTdsDetd').val(f2(sum('TDS_DETD')));
+            }
+            $('#brTable' + t).html(html);
+        });
+    }
+    function brRow(el) { var $tr = $(el).closest('tr'); return BR[$tr.data('t')][$tr.data('i')]; }
+    $('#brTableB, #brTableT').on('change', 'input[data-k]', function () {
+        var b = brRow(this), k = $(this).data('k');
+        if ($(this).hasClass('num')) b[k] = r2(this.value);
+        else if (k === 'INVOICENO' || k === 'GST_CODE') b[k] = $.trim(this.value).toUpperCase();
+        else b[k] = $.trim(this.value);
+        if (k === 'GST_CODE' && b.GST_CODE && !BR_RATES[b.GST_CODE]) {
+            fetchRates([], [b.GST_CODE], function () {
+                if (!(BR_RATES[b.GST_CODE] || {}).FOUND) showAlert('Enter valid GST Code');
+                brCalc(b); renderBr();
+            });
+            return;
+        }
+        brCalc(b); renderBr();
+    });
+    $('#brTableB, #brTableT').on('focus', 'input.br-gst', function () { if (!IS_VIEW) openLookup('gst', $(this)); });
+
+    // VB CmdBrokerage_Click: the first empty row of each grid starts as an auctioneer's bill on the invoice totals.
+    $('#btnBrokerage').on('click', function () {
+        padBr();
+        if (!IS_VIEW) {
+            var t = totals();
+            ['B', 'T'].forEach(function (k) {
+                var b = BR[k][0];
+                if (!b.INVOICENO) {
+                    if (!b.GST_CODE) b.GST_CODE = 'G4';
+                    b.SAC_CODE = '996111'; b.SAC_DESCN = 'Auctioneer Services';
+                    b.TNET_WT = r2(t.TNET_WT); b.INV_AMOUNT = r2(t.AMOUNT);
+                }
+            });
+        }
+        renderBr();
+        $('#pickerOverlay, #brokeragePicker').fadeIn(120);
+        var codes = brGstCodes().filter(function (c) { return !BR_RATES[c]; });
+        if (codes.length) fetchRates([], codes, function () { brRecalcAll(); renderBr(); });
+    });
+    // VB Command12_Click: every bill's invoice date must be a date of the financial year.
+    function brCheck() {
+        var all = BR.B.concat(BR.T);
+        for (var i = 0; i < all.length; i++) {
+            var b = all[i];
+            if (!b.INVOICENO) continue;
+            if (!b.INVOICEDT) return (b.DOC_TYPE === 'B' ? 'Brokerage' : 'Tea Board') + ' Bill ' + b.INVOICENO + ': Enter valid Invoice Date';
+            if (b.INVOICEDT < FY_START || b.INVOICEDT > FY_END) return (b.DOC_TYPE === 'B' ? 'Brokerage' : 'Tea Board') + ' Bill ' + b.INVOICENO + ': Date not between financial Year';
+        }
+        return null;
+    }
+    $('#btnBrokerageClose, #brokerageClose').on('click', function () {
+        $('#brokeragePicker input:focus').trigger('change');
+        var err = IS_VIEW ? null : brCheck();
+        if (err) { showAlert(err); return; }
+        $('#pickerOverlay, #brokeragePicker').fadeOut(120);
+        $('.inputpicker-wrapped-list').hide();
+    });
+
+    // ---------------------------------------------------------------- save
+    function payload(tcsAnswer) {
+        return {
+            // IsNew lets the server apply the AEDV Add / Edit right and back-date window (TeaSaleInvoiceControllerBase.Save).
+            UNIT: $('#UNIT_disp').val(), IsNew: !IS_EDIT, TCS_ANSWER: tcsAnswer || null,
+            DESP_NO: $.trim($('#DESP_NO').val()).toUpperCase() || null, DESP_DATE: $('#DESP_DATE').val() || null, ORIG_DESP_DATE: ORIG_DATE || null,
+            SALE_TYPE: saleType(), SALE_CENTRE: $('#SALE_CENTRE').val(), PCODE: $('#PCODE').val(), BILL_TO_PARTY: $('#BILL_TO_PARTY').val(),
+            PARTY_CODE: $('#PARTY_CODE').val(), BROK_CODE: $('#BROK_CODE').val(), BROKERAGE_RATE: rn($('#BROKERAGE_RATE').val(), 4),
+            SALE_NO: $('#SALE_NO').val() || null, SALE_DATE: $('#SALE_DATE').val() || null,
+            CONS_NO: $.trim($('#CONS_NO').val()), CONS_DT: $('#CONS_DT').val() || null, TPT: $('#TPT').val(), TNO: $.trim($('#TNO').val()),
+            WAY_BILL: $.trim($('#WAY_BILL').val()), DESP_BY: $.trim($('#DESP_BY').val()), DEST_TO: $('#DEST_TO').val(), DEST_FROM: DEST_FROM,
+            ISSUE_DT: $('#ISSUE_DT').val() || null, ISSUE_TM: $('#ISSUE_TM').val(), REMOVAL_DT: $('#REMOVAL_DT').val() || null, REMOVAL_TM: $('#REMOVAL_TM').val(),
+            PROMPT_DATE: $('#PROMPT_DATE').val() || null, ORDNO: $.trim($('#ORDNO').val()), ORDDT: $('#ORDDT').val() || null,
+            TOT_GSTAMT_M: (oneType() || isAuction()) ? r2($('#TOT_GSTAMT_M').val()) : 0, BANK_ACODE: $('#BANK_ACODE').val(), TDS_CODE: $('#TDS_CODE').val(),
+            LINES: rows.map(function (r) {
+                return {
+                    INVNO: r.INVNO, PACK_DATE: r.PACK_DATE || null, GRADE: r.GRADE, MARK: r.MARK, SEASON: r.SEASON, CAT: r.CAT,
+                    BAG_CHEST: rc(r.BAG_CHEST), NET_WT: r3(r.NET_WT), TNET_WT: r3(r.TNET_WT), TGROSS_WT: r3(r.TGROSS_WT), INSURANCE: r2(r.INSURANCE),
+                    EXTRA_BILLED_WT: r3(r.EXTRA_BILLED_WT), BILL_QTY: r3(r.BILL_QTY), SAMPLE_QTY: r3(r.SAMPLE_QTY), OTHER_QTY: r3(r.OTHER_QTY),
+                    RATE: r2(r.RATE), DISC_PER: r2(r.DISC_PER),
+                    ORDER_DOCNO: r.ORDER_DOCNO, ORDER_DOCDT: r.ORDER_DOCDT || null, DAMAGE_CHECK: r.DAMAGE_CHECK, AWR_DOCNO: r.AWR_DOCNO,
+                    AWR_DATE: r.AWR_DATE || null, WAREHOUSE: r.WAREHOUSE, SALE_SRLNO: parseInt(r.SALE_SRLNO, 10) || 0, SAUDA_DOCNO: r.SAUDA_DOCNO,
+                    SAUDA_DOCDT: r.SAUDA_DOCDT || null, BUYER_WH_CODE: r.BUYER_WH_CODE,
+                    DAMAGES: (r.DAMAGES || []).map(function (d) {
+                        return { BAG_CHEST: num(d.BAG_CHEST), WS_QTY: !!d.WS_QTY, BR_QTY: !!d.BR_QTY, TR_QTY: !!d.TR_QTY, SR_QTY: !!d.SR_QTY, OS_QTY: !!d.OS_QTY,
+                                 SR_KGS: r2(d.SR_KGS), REMARK: d.REMARK || '', TAG_OK: !!d.TAG_OK, DOCNO: d.DOCNO || '', AWR_DATE: d.AWR_DATE || null };
+                    })
+                };
+            }),
+            BROKERAGE: BR.B.concat(BR.T).filter(function (b) { return !!b.INVOICENO; }).map(function (b) {
+                return {
+                    DOC_TYPE: b.DOC_TYPE, DOCNO: b.DOCNO, INVOICENO: b.INVOICENO, INVOICEDT: b.INVOICEDT || null, SAC_CODE: b.SAC_CODE, SAC_DESCN: b.SAC_DESCN,
+                    TNET_WT: r2(b.TNET_WT), INV_AMOUNT: r2(b.INV_AMOUNT), RATE: r2(b.RATE), LOT_MONEY: r2(b.LOT_MONEY), SERV_CHG: r2(b.SERV_CHG),
+                    INSP_CHG: r2(b.INSP_CHG), RE_INSP_CHG: r2(b.RE_INSP_CHG), SELLER_CHG: r2(b.SELLER_CHG), TAXABLE_AMT: r2(b.TAXABLE_AMT),
+                    GST_CODE: b.GST_CODE, TDS_AMT: r2(b.TDS_AMT), TDS_PER: r2(b.TDS_PER), TCS_AMT: r2(b.TCS_AMT)
+                };
+            })
+        };
+    }
+
+    // VB Command1_Click's checks, in its order (the API repeats them all).
+    function validate() {
+        if (!$('#PCODE').val()) return 'Party Code cannot be blank';
+        var d = $('#DESP_DATE').val();
+        if (!d) return 'INVALID DATE !';
+        if (d < ($('#DESP_DATE').attr('min') || '') && !(IS_EDIT && d === ORIG_DATE)) return 'Right Locked To Enter Back Date Despactch Entry of ' + dmy(d);
+        if (d > TODAY) return 'Can not enter future date ' + dmy(d);
+        if (!saleType()) return 'Sale Type cannot be blank';
+        if (oneType() && !$('#BROK_CODE').val() && !IS_JST) return 'Broker cannot be blank';
+        if (isAuction() && !$('#SALE_NO').val()) return 'Sale No cannot be blank';
+        if (isAuction() && !IS_EDIT && !$.trim($('#DESP_NO').val()) && !IS_JST) return 'Invoice No cannot be blank for Through Registered Broker';
+        if (!$('#BILL_TO_PARTY').val()) return 'Consignee Code invalid';
+        if (!$('#SALE_CENTRE').val()) return 'Sales Centre code invalid';
+        var i = $('#ISSUE_DT').val(), rm = $('#REMOVAL_DT').val();
+        if (i && rm && i > rm) return 'Date of Removal can\'t Back Date of Date of Issue ' + dmy(i);
+        if (!rows.length) return 'Without Invoice Detail, Record Can Not be Saved.';
+        var seen = {};
+        var withMark = IS_JST && (['1LT', '5', '1LW', '1EW', '1BL', '1LE'].indexOf(saleType()) >= 0 || UNIT === 'AHME');
+        for (var k = 0; k < rows.length; k++) {
+            var r = rows[k];
+            if (BILL_TYPE !== '01' && !(r.RATE > 0)) return 'Line ' + r.SL_NO + ': Enter Rate !';
+            if (!r._saved && r.DAMAGE_QTY > 0 && r.DAMAGE_CHECK !== 'Y') return 'Line ' + r.SL_NO + ': Damage marked Found at time of AWR. Please Check It';
+            var key = r.PACK_DATE + '|' + r.INVNO + '|' + r.GRADE + (withMark ? '|' + r.MARK : '');
+            if (seen[key]) return 'Line ' + r.SL_NO + ': Duplicate Entry';
+            seen[key] = true;
+        }
+        var manual = num($('#TOT_GSTAMT_M').val());
+        if ((oneType() || isAuction()) && manual > 0) {
+            var sys = 0; rows.forEach(function (r) { var c = $.extend({}, r); applyTax(c); sys += c.CGST_AMT + c.SGST_AMT + c.IGST_AMT; });
+            if (Math.abs(r2(manual - sys)) > 1) return 'Please Check the GST Amount Which has been entered from Invoice';
+        }
+        return brCheck();
+    }
+
+    var saving = false;
+    function post(tcsAnswer) {
+        saving = true;
+        $('#btnSave').prop('disabled', true);
+        $.ajax({ url: URL.save, type: 'POST', contentType: 'application/json', data: JSON.stringify(payload(tcsAnswer)) })
+            .done(function (resp) {
+                if (resp && resp.success) {
+                    var no = resp.data && resp.data.docno ? resp.data.docno : '';
+                    showAlert('Saved successfully.' + (no ? '\nTax Invoice No. ' + no : ''), function () { window.location.href = URL.list; });
+                } else if (resp && resp.tcsPrompt) {
+                    // VB: "Total Gross Amount With This Bill Will Cross 50 Lacs. Do Want to apply for TCS?"
+                    showConfirm(resp.message, function () { post('Y'); }, function () { post('N'); });
+                } else if (resp && resp.tcsApplied) {
+                    // The party is now flagged for TCS: show the invoice with TCS; the user saves again.
+                    reRateAll(function () { showAlert(resp.message); });
+                } else {
+                    showAlert((resp && resp.message) || 'Save failed.');
+                }
+            })
+            .fail(function (x) { failMsg(x, 'Save failed.'); })
+            .always(function () { saving = false; $('#btnSave').prop('disabled', false); });
+    }
+    function confirmAndPost() {
+        showConfirm('Are you sure? The invoice and its accounts voucher will be saved.', function () { post(null); });
+    }
+    $('#btnSave').on('click', function () {
+        if (IS_VIEW || saving) return;
+        $('#gridBody input:focus').trigger('change');
+        var err = validate();
+        if (err) { showAlert(err); return; }
+        // VB: an auction Sale Date left blank takes the invoice date; more than one day before it asks.
+        if (isAuction()) {
+            var d = $('#DESP_DATE').val(), sd = $('#SALE_DATE').val();
+            if (!sd) { $('#SALE_DATE').val(d); sd = d; }
+            if (d > addDays(sd, 1)) {
+                showConfirm('Difference Between Sale Date and Tax Invoice Date is more than 1. Want to Continue ?', confirmAndPost);
+                return;
+            }
+        }
+        confirmAndPost();
+    });
+
+    // ---------------------------------------------------------------- init
+    var savedDamages = DOC.damages || [];
+    rows = (DOC.lines || []).map(function (l) {
+        var r = newRow($.extend({}, l, { _saved: true }));
+        // Saved damage detail of the line (only "Ready To Sale" packages are stored).
+        r.DAMAGES = savedDamages.filter(function (d) { return num(d.DTL_SRLNO) === num(l.SL_NO); }).map(function (d) {
+            return { BAG_CHEST: num(d.BAG_CHEST), WS_QTY: flag(d.WS_QTY), BR_QTY: flag(d.BR_QTY), TR_QTY: flag(d.TR_QTY), SR_QTY: flag(d.SR_QTY), OS_QTY: flag(d.OS_QTY),
+                     SR_KGS: num(d.SR_KGS), REMARK: d.REMARK || '', TAG_OK: flag(d.TAG_OK), _oldOk: flag(d.TAG_OK), DOCNO: d.DOCNO || '', AWR_DATE: iso(d.AWR_DATE) };
+        });
+        return r;
+    });
+    (DOC.brokerage || []).forEach(function (b) { var t = b.DOC_TYPE === 'T' ? 'T' : 'B'; BR[t].push(newBr(t, b)); });
+    padBr();
+    renderGrid();
+    if (!IS_VIEW && (rows.length || brGstCodes().length)) {
+        // Edit: live rates for any further change; the saved figures stay as loaded.
+        fetchRates(rows.map(function (r) { return r.GRADE; }), brGstCodes(), function () { renderGrid(); });
+    }
+    // Leaving the page (e.g. a side-menu click) closes any dropdown still open.
+    $(window).on('beforeunload pagehide', function () { $('.inputpicker-wrapped-list').hide(); });
+})();
+</script>
+@Html.Partial("_RecordLock")
+</body>
+</html>
