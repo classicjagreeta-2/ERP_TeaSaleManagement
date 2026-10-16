@@ -166,7 +166,7 @@ namespace TeaSaleManagement.Controllers
                     return RedirectToAction("Index");
                 }
                 ViewBag.IsEdit = false;
-                ViewBag.DocJson = JsonConvert.SerializeObject(new { head = ctx.Data, lines = new object[0] });
+                ViewBag.DocJson = ScriptJson.Serialize(new { head = ctx.Data, lines = new object[0] });
                 return View();
             }
 
@@ -222,7 +222,7 @@ namespace TeaSaleManagement.Controllers
             }
 
             ViewBag.IsEdit = true;
-            ViewBag.DocJson = JsonConvert.SerializeObject(r.Data);
+            ViewBag.DocJson = ScriptJson.Serialize(r.Data);
             return View();
         }
 
@@ -389,14 +389,14 @@ namespace TeaSaleManagement.Controllers
         // "Select Stock" (VB6 GardenInv_List: Command4 on opening, Command3 "Refresh"): the released
         // packing lots still available for this sale. Nothing unless `unit` is one of the user's units.
         [HttpGet]
-        public async Task<ActionResult> GetAvailableStock(string unit = "", string saleNo = "", string saleCentre = "", string docdt = "",
+        public async Task<ActionResult> GetAvailableStock(string unit = "", string docno = "", string saleNo = "", string saleCentre = "", string docdt = "",
                                                           string category = "", string mark = "", string garden = "", string broker = "",
                                                           bool bySale = false, string mode = "open")
         {
             if (!UnitScope.IsAllowed(unit, await GetUnitsForUserAsync()))
                 return JsonExact(new object[0]);
             return JsonExactOrSessionExpired(await Services.GetAsync<JToken>(
-                $"{Api}GetAvailableStock?unit={E(unit)}&saleNo={E(saleNo)}&saleCentre={E(saleCentre)}&docdt={E(docdt)}" +
+                $"{Api}GetAvailableStock?unit={E(unit)}&docno={E(docno)}&saleNo={E(saleNo)}&saleCentre={E(saleCentre)}&docdt={E(docdt)}" +
                 $"&category={E(category)}&mark={E(mark)}&garden={E(garden)}&broker={E(broker)}" +
                 $"&bySale={(bySale ? "true" : "false")}&mode={E(mode)}"));
         }

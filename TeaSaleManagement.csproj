@@ -228,6 +228,11 @@
     <Content Include="Views\WithdrawlEntry\Index.cshtml" />
     <Content Include="Views\WithdrawlEntry\InsertOrUpdate.cshtml" />
     <Content Include="Views\WithdrawlEntry\_ListRows.cshtml" />
+    <Compile Include="Controllers\HS\Masters\FactoryMasterControllerBase.cs" />
+    <Compile Include="Controllers\HS\Masters\FactoryMasterScreens.cs" />
+    <Content Include="Views\FactoryMaster\Index.cshtml" />
+    <Content Include="Views\FactoryMaster\InsertOrUpdate.cshtml" />
+    <Content Include="Views\FactoryMaster\_ListRows.cshtml" />
     <Compile Include="Controllers\HS\AuctionCatalogueController.cs" />
     <Content Include="Views\AuctionCatalogue\Index.cshtml" />
     <Content Include="Views\AuctionCatalogue\InsertOrUpdate.cshtml" />

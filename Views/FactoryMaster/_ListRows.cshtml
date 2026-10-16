@@ -1,0 +1,66 @@
+@* Table rows of a Masters list (Views/FactoryMaster/Index.cshtml) -- rendered with the page for the first chunk
+   and on their own for each further chunk of the infinite scroll (FactoryMasterControllerBase.Index). The columns
+   come from the API's GetMeta (IN_LIST fields). *@
+@model List<Newtonsoft.Json.Linq.JObject>
+@{
+    var meta = ViewBag.Meta as Newtonsoft.Json.Linq.JObject;
+    bool byUnit = ViewBag.ByUnit ?? false;
+    string ctl = ViewBag.Ctl;
+    var canView = (ViewBag.Permission as TeaSaleManagement.Helpers.AEDV)?.View ?? false;
+    var cols = (meta?["FIELDS"] as Newtonsoft.Json.Linq.JArray ?? new Newtonsoft.Json.Linq.JArray())
+        .Where(f => (bool?)f["IN_LIST"] ?? false).ToList();
+    var units = ViewBag.UnitList as List<TeaSaleManagement.Models.PT.UnitOption>;
+    Func<Newtonsoft.Json.Linq.JToken, Newtonsoft.Json.Linq.JObject, string> cell = (f, row) =>
+    {
+        var col = (string)f["COL"];
+        var kind = (string)f["KIND"];
+        var v = row[col];
+        if (v == null || v.Type == Newtonsoft.Json.Linq.JTokenType.Null) return kind == "check" ? "No" : "";
+        switch (kind)
+        {
+            case "check": return (string)v == "Y" ? "Yes" : "No";
+            case "date":
+                DateTime d;
+                return DateTime.TryParse((string)v, out d) ? d.ToString("dd/MM/yyyy") : (string)v;
+            case "number":
+                var dec = (int?)f["DEC"] ?? 0;
+                return ((decimal)v).ToString(dec > 0 ? "0." + new string('0', dec) : "0");
+            case "lookup":
+            case "account":
+                var name = (string)row[col + "_NAME"];
+                return string.IsNullOrEmpty(name) ? (string)v : (string)v + " - " + name;
+            default: return (string)v;
+        }
+    };
+}
+@if (Model != null)
+{
+    foreach (var row in Model)
+    {
+        var code = (string)row["CODE"];
+        var unit = (string)row["UNIT"] ?? "";
+        <tr class="data-row"@(byUnit ? TeaSaleManagement.Utility.RecordLock.RowAttrs(ViewBag.Locks, unit, code) : TeaSaleManagement.Utility.RecordLock.RowAttrs(ViewBag.Locks, code))>
+            <td><input type="checkbox" class="row-check" value="@code" data-unit="@unit" /></td>
+            @if (byUnit)
+            {
+                <td title="@unit">@TeaSaleManagement.UnitScope.Name(unit, units)</td>
+            }
+            <td>
+                @if (canView)
+                {
+                    <a href="@Url.Action("InsertOrUpdate", ctl, new { unit = byUnit ? unit : null, code = code, view = true })">@code</a>
+                }
+                else
+                {
+                    @code
+                }
+            </td>
+            <td>@((string)row["NAME"])</td>
+            @foreach (var f in cols)
+            {
+                var kind = (string)f["KIND"];
+                <td class="@(kind == "number" ? "num" : "")">@cell(f, row)</td>
+            }
+        </tr>
+    }
+}

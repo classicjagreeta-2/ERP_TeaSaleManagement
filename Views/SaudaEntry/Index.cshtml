@@ -241,7 +241,7 @@
             });
 
             // "New" row: the Unit (USER_SCHEMA_LINK) -- this screen has no Type.
-            var UNIT_LIST = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(unitList));
+            var UNIT_LIST = @Html.Raw(TeaSaleManagement.ScriptJson.Serialize(unitList));
             function buildNewRow() {
                 return '<tr id="newTypeRow" class="new-entry-row">' +
                     '<td colspan="2" style="text-align:center;"><i class="fa fa-pencil go-new" title="Open @screenName"></i></td>' +

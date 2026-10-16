@@ -1,0 +1,250 @@
+@model List<Newtonsoft.Json.Linq.JObject>
+
+@{
+    string screenName = (string)ViewBag.ScreenName;
+    string ctl = ViewBag.Ctl;
+    ViewBag.Title = screenName;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var meta = ViewBag.Meta as Newtonsoft.Json.Linq.JObject;
+    bool byUnit = ViewBag.ByUnit ?? false;
+    var unitList = (List<TeaSaleManagement.Models.PT.UnitOption>)ViewBag.UnitList ?? new List<TeaSaleManagement.Models.PT.UnitOption>();
+    var cols = (meta?["FIELDS"] as Newtonsoft.Json.Linq.JArray ?? new Newtonsoft.Json.Linq.JArray())
+        .Where(f => (bool?)f["IN_LIST"] ?? false).ToList();
+    int colCount = 3 + (byUnit ? 1 : 0) + cols.Count;
+    string codeLabel = (string)meta?["CODE_LABEL"] ?? "Code";
+    string nameLabel = (string)meta?["NAME_LABEL"] ?? "Name";
+    // AEDV gating of the toolbar buttons (UX only -- the controller re-checks every right).
+    var perm = ViewBag.Permission as TeaSaleManagement.Helpers.AEDV;
+    Func<bool, string> denied = ok => ok ? "" : "pointer-events:none; opacity:0.5;";
+    // A guard's redirect message is shown in the in-app Notice popup (not _Notification's toastr).
+    var redirectError = TempData["toastrError"] as string;
+    TempData.Remove("toastrError");
+}
+
+@{
+    Func<string, string, MvcHtmlString> SortTh = (key, label) =>
+    {
+        var cur = (string)(ViewBag.SortBy ?? "");
+        var dir = (string)(ViewBag.SortDir ?? "");
+        var active = string.Equals(cur, key, StringComparison.OrdinalIgnoreCase) || (cur == "" && key == "CODE");
+        var curDir = cur == "" ? "asc" : dir;
+        var next = (active && curDir == "asc") ? "desc" : "asc";
+        var thClass = active ? "sortable is-sorted" : "sortable";
+        var up = (active && curDir == "asc") ? "feather icon-arrow-up on" : "feather icon-arrow-up";
+        var down = (active && curDir != "asc") ? "feather icon-arrow-down on" : "feather icon-arrow-down";
+        return MvcHtmlString.Create(
+            "<th class=\"" + thClass + "\" data-sort=\"" + key + "\" data-dir=\"" + next + "\" title=\"Sort by " + label +
+            "\"><span class=\"th-label\">" + label + "</span><span class=\"sort-arrows\"><i class=\"" + up + "\"></i><i class=\"" +
+            down + "\"></i></span></th>");
+    };
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <link href="~/libraries/assetspo/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order.css">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order-responsive.css">
+    <link href="~/Controllers/Test/assets/css/jquery.inputpicker.css" rel="stylesheet" />
+    <style>
+        tbody div { overflow: unset !important; height: auto !important; max-height: none !important; }
+        table.main-table th, table.main-table td {
+            padding: 6px; font-size: 12px; line-height: 1.3;
+            height: 30px; box-sizing: border-box; vertical-align: middle;
+        }
+        table.main-table td .row-check { margin: 0; vertical-align: middle; }
+        table.main-table td.num, table.main-table th.num { text-align: right; }
+        .table-responsive thead th.sortable { cursor: pointer; user-select: none; }
+        .table-responsive thead th.sortable:hover { background-color: #4b5b7a; }
+        .table-responsive thead th.is-sorted { background-color: #4b5b7a; }
+        th.sortable .sort-arrows { margin-left: 6px; white-space: nowrap; }
+        th.sortable .sort-arrows i { font-size: 12px; color: rgba(255,255,255,.45); vertical-align: middle; }
+        th.sortable .sort-arrows i.on { color: #fff; }
+        .list-filters { display: flex; justify-content: flex-end; gap: 10px; width: 100%; margin-bottom: 15px; flex-wrap: wrap; }
+        .list-badge { display: inline-block; background: #2c3958; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .05em; padding: 5px 10px; border-radius: 4px; margin: 6px 10px; }
+        #tableScroll { max-height: calc(100vh - 380px); overflow: auto; }
+        #tableScroll table.main-table thead th { position: sticky; top: 0; z-index: 3; }
+        tr.new-entry-row td { background-color: #eef3ff; vertical-align: middle; }
+        tr.new-entry-row input.new-row-pick { border: 1px solid #dde2ea; border-radius: 6px; padding: 6px 8px; font-size: 13px; width: 100%; box-sizing: border-box; min-width: 240px; }
+        tr.new-entry-row .inputpicker-overflow-hidden, tr.new-entry-row .inputpicker-div { overflow: hidden !important; height: auto !important; max-width: 100%; }
+        #inputpicker-wrapped-list { min-width: 300px; }
+        tr.new-entry-row .go-new { font-size: 15px; cursor: not-allowed; color: #aab2c0; }
+        tr.new-entry-row .go-new.is-ready { cursor: pointer; color: #404e68; }
+        .popup-box.alert-box { width: 420px; max-width: 92vw; display: none; }
+        .popup-box.alert-box .alert-message { max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+        .popup-box.alert-box .alert-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="general-container">
+        <div class="action-btns">
+            <ul>
+                <li><a href="@Url.Action("Index", "Menu")"><i class="fa fa-arrow-left"></i> Back</a></li>
+                <li><a href="javascript:void(0)" id="btnNew" style="@(denied(perm?.Add ?? false))"><i class="fa fa-plus"></i> New</a></li>
+                <li><a href="javascript:void(0)" id="editBtn" style="@(denied(perm?.Edit ?? false))"><i class="fa fa-pencil"></i> Edit</a></li>
+                <li><a href="javascript:void(0)" id="deleteBtn" style="@(denied(perm?.Delete ?? false))"><i class="fa fa-trash-o"></i> Delete</a></li>
+                <li><a href="javascript:void(0)" id="viewBtn" style="@(denied(perm?.View ?? false))"><i class="fa fa-eye"></i> View</a></li>
+                <li style="margin-left:auto"><span class="list-badge">LIST</span></li>
+            </ul>
+        </div>
+
+        <div class="title-heading">@screenName</div>
+
+        <div class="list-filters">
+            <div style="position: relative; width: 280px;">
+                <input type="text" id="searchInput" value="@ViewBag.CurrentFilter" placeholder="Search any column"
+                       style="width: 100%; padding: 6px 40px 6px 10px; border: 1px solid #ccc; border-radius: 4px;" />
+                <i class="fa fa-search" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #333;"></i>
+            </div>
+        </div>
+
+        <div class="table-responsive" id="tableScroll">
+            <table class="border main-table" id="mstTable">
+                <thead>
+                    <tr>
+                        <th style="width:26px;"></th>
+                        @if (byUnit)
+                        {
+                            @SortTh("UNIT", "Unit")
+                        }
+                        @SortTh("CODE", codeLabel)
+                        @SortTh("NAME", nameLabel)
+                        @foreach (var f in cols)
+                        {
+                            var label = (string)f["LABEL"] + (string.IsNullOrEmpty((string)f["SUFFIX"]) ? "" : " " + (string)f["SUFFIX"]);
+                            <th class="@((string)f["KIND"] == "number" ? "num" : "")">@label</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody id="listBody">
+                    @Html.Partial("~/Views/FactoryMaster/_ListRows.cshtml", Model)
+                    @if (Model == null || Model.Count == 0)
+                    {
+                        <tr><td colspan="@colCount" style="text-align:center;">No records found</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @{
+            int pageSize = (int)ViewBag.PageSize;
+            int rowCount = (int)ViewBag.RowCount;
+        }
+        <div id="listLoading" style="display:none;text-align:center;padding:8px 0 0;color:#666;font-size:12.5px;">Loading...</div>
+        <div class="dataTables_info" style="padding:10px 20px 0;">Showing <span id="shownCount">@(Model?.Count ?? 0)</span> of @rowCount</div>
+    </div>
+
+    <div class="popup-overlay" id="appAlertOverlay"></div>
+    <div class="popup-box alert-box" id="appAlertBox">
+        <div class="popup-header"><h2 id="appAlertTitle">Notice</h2></div>
+        <div class="alert-message" id="appAlertMessage"></div>
+        <div class="alert-actions">
+            <button type="button" class="btn-white" id="appAlertCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+            <button type="button" class="btn-blue" id="appAlertOk" style="width:auto;padding:5px 16px;">OK</button>
+        </div>
+    </div>
+
+    <script src="~/Controllers/Test/assets/js/jquery.inputpicker.js"></script>
+    <script src="~/Scripts/list-new-row-pickers.js?v=@System.IO.File.GetLastWriteTimeUtc(Server.MapPath("~/Scripts/list-new-row-pickers.js")).Ticks"></script>
+    <script src="~/Scripts/list-infinite-scroll.js"></script>
+    <script>
+        $('#appAlertOverlay, #appAlertBox').appendTo(document.body);
+        function closeAppAlert() { $('#appAlertOverlay, #appAlertBox').fadeOut(120); }
+        function showAlert(message) { AppMsg.show(message); }
+        function showConfirm(message, onYes) {
+            $('#appAlertTitle').text('Confirm');
+            $('#appAlertMessage').text(message || '');
+            $('#appAlertCancel').show().off('click').on('click', closeAppAlert);
+            $('#appAlertOk').off('click').on('click', function () { closeAppAlert(); onYes(); });
+            $('#appAlertOverlay, #appAlertBox').fadeIn(120);
+        }
+
+        $(function () {
+            var REDIRECT_ERROR = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(redirectError ?? "", new Newtonsoft.Json.JsonSerializerSettings { StringEscapeHandling = Newtonsoft.Json.StringEscapeHandling.EscapeHtml }));
+            if (REDIRECT_ERROR) showAlert(REDIRECT_ERROR);
+
+            var BY_UNIT = @(byUnit ? "true" : "false");
+            var URL = {
+                list: '@Url.Action("Index", ctl)',
+                entry: '@Url.Action("InsertOrUpdate", ctl)',
+                del: '@Url.Action("Delete", ctl)'
+            };
+
+            var searchTimer;
+            $('#searchInput').on('input', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(function () { reload(); }, 400);
+            });
+
+            var SORT_BY = '@(ViewBag.SortBy ?? "")', SORT_DIR = '@(ViewBag.SortDir ?? "")';
+            function reload(sortBy, sortDir) {
+                var by = (sortBy === undefined) ? SORT_BY : sortBy;
+                var dir = (sortDir === undefined) ? SORT_DIR : sortDir;
+                window.location.href = URL.list
+                    + '?searchString=' + encodeURIComponent($('#searchInput').val())
+                    + '&sortBy=' + encodeURIComponent(by || '')
+                    + '&sortDir=' + encodeURIComponent(dir || '');
+            }
+            $('#mstTable').on('click', 'thead th.sortable', function () { reload($(this).data('sort'), $(this).data('dir')); });
+
+            initInfiniteList({
+                scroll: '#tableScroll', body: '#listBody', loading: '#listLoading', count: '#shownCount',
+                url: URL.list,
+                search: $('#searchInput').val(), pageSize: @pageSize, total: @rowCount, startPage: 1,
+                extra: { sortBy: SORT_BY, sortDir: SORT_DIR }
+            });
+
+            // New: a master kept by unit picks its Unit on the "New" row first (the pencil then opens the
+            // entry screen with it locked); the others open the entry screen straight away.
+            var UNIT_LIST = @Html.Raw(TeaSaleManagement.ScriptJson.Serialize(unitList));
+            function buildNewRow() {
+                return '<tr id="newTypeRow" class="new-entry-row">' +
+                    '<td style="text-align:center;"><i class="fa fa-pencil go-new" title="Open @screenName"></i></td>' +
+                    '<td colspan="3"><input type="text" id="newRowUnit" class="new-row-pick" placeholder="Select Unit" autocomplete="off" /></td>' +
+                    '<td colspan="@Math.Max(colCount - 4, 1)"></td>' +
+                    '</tr>';
+            }
+            function refreshGoNewState() { $('.go-new').toggleClass('is-ready', !!$('#newRowUnit').val()); }
+            $('#btnNew').on('click', function () {
+                if (!BY_UNIT) { window.location.href = URL.entry; return; }
+                if ($('#newTypeRow').length) return;
+                if (!UNIT_LIST.length) { showAlert('No unit is available to you (no Unit is linked to your user).'); return; }
+                $('#listBody').prepend(buildNewRow());
+                initNewRowPickers({ units: UNIT_LIST, types: {} });
+                refreshGoNewState();
+            });
+            $('#mstTable').on('change', '#newRowUnit', refreshGoNewState);
+            $('#mstTable').on('click', '.go-new', function () {
+                var unit = $('#newRowUnit').val();
+                if (!unit) { showAlert('Please select Unit first'); return; }
+                window.location.href = URL.entry + '?unit=' + encodeURIComponent(unit);
+            });
+
+            function getSingleChecked(action) {
+                var $c = $('.row-check:checked');
+                if ($c.length === 0) { showAlert('Please select a record to ' + action + '.'); return null; }
+                if ($c.length > 1) { showAlert('Please select only one record to ' + action + '.'); return null; }
+                return $c;
+            }
+            function keyQuery($c) {
+                return '?code=' + encodeURIComponent($c.val()) + (BY_UNIT ? '&unit=' + encodeURIComponent($c.data('unit')) : '');
+            }
+            function goEdit($c) { window.location.href = URL.entry + keyQuery($c); }
+            function goView($c) { window.location.href = URL.entry + keyQuery($c) + '&view=true'; }
+            function doDelete($c) {
+                // VB delete_record: "Are you sure to delete the record?"
+                showConfirm('Are you sure to delete the record?\n@screenName ' + $c.val(), function () {
+                    $('<form>', { method: 'POST', action: URL.del })
+                        .append($('<input>', { type: 'hidden', name: 'unit', value: BY_UNIT ? $c.data('unit') : '' }))
+                        .append($('<input>', { type: 'hidden', name: 'code', value: $c.val() }))
+                        .appendTo('body').submit();
+                });
+            }
+            $('#editBtn').on('click', function () { var $c = getSingleChecked('edit'); if ($c) goEdit($c); });
+            $('#deleteBtn').on('click', function () { var $c = getSingleChecked('delete'); if ($c) doDelete($c); });
+            $('#viewBtn').on('click', function () { var $c = getSingleChecked('view'); if ($c) goView($c); });
+        });
+    </script>
+    @Html.Partial("_RecordLock")
+</body>
+</html>

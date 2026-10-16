@@ -414,6 +414,16 @@ namespace TeaSaleManagement
                 ? d : (DateTime?)null;
     }
 
+    // JSON written into a <script> block with @Html.Raw (ViewBag.DocJson, UNIT_LIST ...): < > & ' "
+    // are escaped as < etc., so a stored name holding "</script>" cannot end the block (XSS).
+    public static class ScriptJson
+    {
+        public static readonly Newtonsoft.Json.JsonSerializerSettings Html =
+            new Newtonsoft.Json.JsonSerializerSettings { StringEscapeHandling = Newtonsoft.Json.StringEscapeHandling.EscapeHtml };
+
+        public static string Serialize(object value) => Newtonsoft.Json.JsonConvert.SerializeObject(value, Html);
+    }
+
     // Unit scoping for the Blend screens (Master / Final / Packing) -- see CLAUDE.md's
     // "Unit-wise permission rule". `allowed` is the user's USER_SCHEMA_LINK units as returned
     // by the API's GetUnitsForUser (each controller's GetUnitsForUserAsync()).

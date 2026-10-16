@@ -164,7 +164,7 @@ namespace TeaSaleManagement.Controllers
                     return RedirectToAction("Index");
                 }
                 ViewBag.IsEdit = false;
-                ViewBag.DocJson = JsonConvert.SerializeObject(new { head = ctx.Data, lines = new object[0] });
+                ViewBag.DocJson = ScriptJson.Serialize(new { head = ctx.Data, lines = new object[0] });
                 return View();
             }
 
@@ -212,7 +212,7 @@ namespace TeaSaleManagement.Controllers
             }
 
             ViewBag.IsEdit = true;
-            ViewBag.DocJson = JsonConvert.SerializeObject(r.Data);
+            ViewBag.DocJson = ScriptJson.Serialize(r.Data);
             return View();
         }
 
@@ -382,13 +382,20 @@ namespace TeaSaleManagement.Controllers
                 $"&category={E(category)}&mark={E(mark)}"));
         }
 
-        // VB6 GetCatelogueQty: the lot's catalogue qty per bag, re-read when Bags change.
+        // VB6 GetCatelogueQty: the lot's catalogue qty per bag, re-read when Bags change. On an Edit
+        // `docno` / `docdt` leave this document's own withdrawal out of the balance.
         [HttpGet]
         public async Task<ActionResult> GetCatalogueQty(string withFrom = "", string saleNo = "", string saleCentre = "",
-                                                        string invno = "", string mark = "", string grade = "", string packDate = "") =>
-            JsonExactOrSessionExpired(await Services.GetAsync<JToken>(
+                                                        string invno = "", string mark = "", string grade = "", string packDate = "",
+                                                        string unit = "", string docno = "", string docdt = "")
+        {
+            if (!UnitScope.IsAllowed(unit, await GetUnitsForUserAsync()))
+                return JsonExact(new { FOUND = false });
+            return JsonExactOrSessionExpired(await Services.GetAsync<JToken>(
                 $"{Api}GetCatalogueQty?withFrom={E(withFrom)}&saleNo={E(saleNo)}&saleCentre={E(saleCentre)}" +
-                $"&invno={E(invno)}&mark={E(mark)}&grade={E(grade)}&packDate={E(packDate)}"));
+                $"&invno={E(invno)}&mark={E(mark)}&grade={E(grade)}&packDate={E(packDate)}" +
+                $"&unit={E(unit)}&docno={E(docno)}&docdt={E(docdt)}"));
+        }
 
         // VB6 "Send Mail": the WDO request to the broker (opened by the browser as a mailto: link).
         [HttpGet]

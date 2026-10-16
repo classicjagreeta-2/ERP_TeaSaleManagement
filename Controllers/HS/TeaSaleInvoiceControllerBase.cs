@@ -178,7 +178,7 @@ namespace TeaSaleManagement.Controllers
                     return RedirectToAction("Index");
                 }
                 ViewBag.IsEdit = false;
-                ViewBag.DocJson = JsonConvert.SerializeObject(new { head = ctx.Data, lines = new object[0], damages = new object[0], brokerage = new object[0] });
+                ViewBag.DocJson = ScriptJson.Serialize(new { head = ctx.Data, lines = new object[0], damages = new object[0], brokerage = new object[0] });
                 return View(ViewDir + "InsertOrUpdate.cshtml");
             }
 
@@ -228,7 +228,7 @@ namespace TeaSaleManagement.Controllers
             }
 
             ViewBag.IsEdit = true;
-            ViewBag.DocJson = JsonConvert.SerializeObject(r.Data);
+            ViewBag.DocJson = ScriptJson.Serialize(r.Data);
             return View(ViewDir + "InsertOrUpdate.cshtml");
         }
 
@@ -383,8 +383,12 @@ namespace TeaSaleManagement.Controllers
         }
 
         // The list's "+" row / Lines button -- the invoice's lines in one lean call.
-        [HttpGet] public Task<ActionResult> GetRowLines(string unit = "", string docno = "", string docdt = "") =>
-            Lookup($"GetRowLines?tag={Tag}&unit={E(unit)}&docno={E(docno)}&docdt={E(docdt)}");
+        // Nothing for a Unit the user is not linked to (the API itself checks no grants).
+        [HttpGet] public async Task<ActionResult> GetRowLines(string unit = "", string docno = "", string docdt = "")
+        {
+            if (!UnitScope.IsAllowed(unit, await GetUnitsForUserAsync())) return JsonExact(new { details = new object[0] });
+            return await Lookup($"GetRowLines?tag={Tag}&unit={E(unit)}&docno={E(docno)}&docdt={E(docdt)}");
+        }
         [HttpGet] public Task<ActionResult> GetRowDetail(string unit = "", string docno = "", string docdt = "") =>
             GetRowLines(unit, docno, docdt);
 
@@ -443,8 +447,11 @@ namespace TeaSaleManagement.Controllers
                                 $"&broker={E(broker)}&saleNo={E(saleNo)}");
         }
 
-        [HttpGet] public Task<ActionResult> GetDamage(string invno = "", string mark = "") =>
-            Lookup($"GetDamage?invno={E(invno)}&mark={E(mark)}");
+        [HttpGet] public async Task<ActionResult> GetDamage(string unit = "", string invno = "", string mark = "")
+        {
+            if (!UnitScope.IsAllowed(unit, await GetUnitsForUserAsync())) return JsonExact(new object[0]);
+            return await Lookup($"GetDamage?invno={E(invno)}&mark={E(mark)}");
+        }
         [HttpGet] public Task<ActionResult> GetRates(string unit = "", string saleCentre = "", string billTo = "", string shipTo = "", string docdt = "", string grades = "", string gstCodes = "") =>
             Lookup($"GetRates?unit={E(unit)}&saleCentre={E(saleCentre)}&billTo={E(billTo)}&shipTo={E(shipTo)}&docdt={E(docdt)}&grades={E(grades)}&gstCodes={E(gstCodes)}");
     }

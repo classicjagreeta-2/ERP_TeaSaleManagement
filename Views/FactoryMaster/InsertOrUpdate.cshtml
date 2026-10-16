@@ -1,0 +1,377 @@
+@{
+    string screenName = (string)ViewBag.ScreenName;
+    string ctl = ViewBag.Ctl;
+    ViewBag.Title = screenName;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    bool isEdit = ViewBag.IsEdit ?? false;
+    bool isView = ViewBag.IsView ?? false;
+    bool byUnit = ViewBag.ByUnit ?? false;
+    var meta = ViewBag.Meta as Newtonsoft.Json.Linq.JObject;
+    var fields = (meta?["FIELDS"] as Newtonsoft.Json.Linq.JArray ?? new Newtonsoft.Json.Linq.JArray()).ToList();
+    var sections = (meta?["SECTIONS"] as Newtonsoft.Json.Linq.JArray ?? new Newtonsoft.Json.Linq.JArray()).Select(s => (string)s).ToList();
+    string mainSection = (string)meta?["MAIN_SECTION"] ?? "Header";
+    bool autoCode = (bool?)meta?["AUTO_CODE"] ?? false;
+    // form-col-NN width of a field (the API gives 20 / 25 / 40 / 50).
+    Func<int?, string> colCls = w => "form-col-" + (w ?? 20);
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <link href="~/libraries/assetspo/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order.css">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order-responsive.css">
+    <!-- Root UI lookup convention (CLAUDE.md "Lookup pickers"): every lookup field is a jquery.inputpicker dropdown. -->
+    <link href="~/Controllers/Test/assets/css/jquery.inputpicker.css" rel="stylesheet" />
+    <script src="~/libraries/assetspo/js/custom.js"></script>
+    <script src="~/Controllers/Test/assets/js/jquery.inputpicker.js"></script>
+    <style>
+        .inputpicker-wrapped-list .inputpicker-active td,
+        .inputpicker-wrapped-list .inputpicker-active th { background: #404e68 !important; color: #fff !important; font-weight: bold; }
+        .inputpicker-wrapped-list { min-width: max-content !important; }
+        .inputpicker-wrapped-list table { width: max-content !important; }
+        input[readonly], input:disabled, select:disabled { background-color: #f3f4f7; color: #555; }
+        .accordion-container.compact-accordion, .accordion-container.main-accordion { height: auto; overflow-y: visible; }
+        .form-col-25 { width: 25%; padding: 0 10px; margin-bottom: 10px; }
+        .form-col-40 { width: 40%; padding: 0 10px; margin-bottom: 10px; }
+        .lookup-pair { display: flex; gap: 8px; }
+        .lookup-pair .lk-code { flex: 0 0 40%; }
+        .lookup-pair .lk-name { flex: 1 1 auto; }
+        .chk-field label.chk { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; font-weight: bold; cursor: pointer; }
+        .chk-field input[type="checkbox"] { width: auto; margin: 0; }
+        input.num { text-align: right; }
+        input.up { text-transform: uppercase; }
+        input.low { text-transform: lowercase; }
+        .field-suffix { font-size: 12px; color: #555; margin-left: 4px; }
+        .popup-box.alert-box { width: 440px; max-width: 92vw; display: none; }
+        .popup-box.alert-box .alert-message { max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+        .popup-box.alert-box .alert-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .action-btns li button:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+        @@media (max-width: 768px) { .form-col-20, .form-col-25, .form-col-40, .form-col-50 { width: 100%; } }
+    </style>
+</head>
+<body>
+
+    <div class="general-container">
+        <div class="purchase-details">
+            <div class="header-content">
+                <div class="action-btns">
+                    <ul>
+                        <li><a href="@Url.Action("Index", ctl)"><i class="fa fa-arrow-left"></i> Back</a></li>
+                        <li><button type="button" id="btnSave" @(isView ? "disabled" : "")><i class="fa fa-floppy-o"></i> Save</button></li>
+                        @* VB Command2 "Revert": back to the record as loaded (or a blank new one). *@
+                        <li><a href="javascript:void(0)" id="btnRevert"><i class="fa fa-undo"></i> Revert</a></li>
+                        <li><a href="@Url.Action("Index", ctl)"><i class="fa fa-times"></i> Cancel</a></li>
+                        <li style="margin-left:auto">
+                            <label class="btn btn-inverse pull-right" style="margin:0; border:none;">
+                                Status : <span id="statusText">@(isView ? "View" : isEdit ? "Edit" : "Add")</span>
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+                <div class="header-details">
+                    <div class="left">
+                        <div class="order-code">
+                            <div class="txt"><div class="title-heading">@screenName</div></div>
+                        </div>
+                        <div class="title-heading">@(((string)meta?["CODE_LABEL"] ?? "Code").ToUpper()) : <span id="hdrCode"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            @if (byUnit)
+            {
+                <div class="accordion-container compact-accordion">
+                    <div class="accordion">
+                        <div class="accordion-header active"><span class="txt">Unit</span></div>
+                        <div class="accordion-body" style="display:block;">
+                            <div class="form-row">
+                                <div class="form-col-25">
+                                    <label>Unit</label>
+                                    @* #UNIT_disp keeps the code that is saved; #UNIT_name shows the unit's name. *@
+                                    <input type="hidden" id="UNIT_disp" />
+                                    <input type="text" id="UNIT_name" readonly />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="accordion-container main-accordion">
+                @foreach (var sec in sections)
+                {
+                    <div class="accordion">
+                        <div class="accordion-header active"><span class="txt">@sec</span></div>
+                        <div class="accordion-body" style="display:block;">
+                            <div class="form-row">
+                                @if (sec == mainSection)
+                                {
+                                    <div class="@colCls((int?)meta?["CODE_W"])">
+                                        <label>@((string)meta?["CODE_LABEL"]) @if (!autoCode) {<span>(*)</span>}</label>
+                                        <input type="text" id="CODE" class="up" maxlength="@((int?)meta?["CODE_LEN"] ?? 6)" autocomplete="off" @(autoCode || isEdit || isView ? "readonly" : "") placeholder="@(autoCode && !isEdit ? "(auto)" : "")" />
+                                    </div>
+                                    <div class="@colCls((int?)meta?["NAME_W"])">
+                                        <label>@((string)meta?["NAME_LABEL"]) <span>(*)</span></label>
+                                        <input type="text" id="NAME" class="up" maxlength="@((int?)meta?["NAME_LEN"] ?? 50)" autocomplete="off" />
+                                    </div>
+                                }
+                                @foreach (var f in fields.Where(x => (string)x["SECTION"] == sec))
+                                {
+                                    var col = (string)f["COL"];
+                                    var kind = (string)f["KIND"];
+                                    var req = (bool?)f["REQ"] ?? false;
+                                    var cs = (string)f["CASE"];
+                                    var caseCls = cs == "U" ? "up" : cs == "L" ? "low" : "";
+                                    var suffix = (string)f["SUFFIX"];
+                                    if (kind == "check")
+                                    {
+                                        <div class="@colCls((int?)f["W"]) chk-field">
+                                            <label class="chk"><input type="checkbox" id="f_@col" data-col="@col" data-kind="check" data-excludes="@((string)f["EXCLUDES"])" /> @((string)f["LABEL"])</label>
+                                        </div>
+                                        continue;
+                                    }
+                                    <div class="@colCls((int?)f["W"])">
+                                        <label>@((string)f["LABEL"]) @if (req) {<span>(*)</span>}</label>
+                                        @if (kind == "lookup" || kind == "account")
+                                        {
+                                            <div class="lookup-pair">
+                                                @* inputpicker dropdown: the saved value is the picked code; the name is shown beside it. *@
+                                                <input type="text" id="f_@col" class="lk-code" data-col="@col" data-kind="@kind" placeholder="Click to select" autocomplete="off" />
+                                                <input type="text" id="f_@(col)_name" class="lk-name" readonly tabindex="-1" />
+                                            </div>
+                                        }
+                                        else if (kind == "date")
+                                        {
+                                            <input type="date" id="f_@col" data-col="@col" data-kind="date" />
+                                        }
+                                        else if (kind == "number")
+                                        {
+                                            <div style="display:flex;align-items:center;">
+                                                <input type="text" inputmode="decimal" id="f_@col" class="num" data-col="@col" data-kind="number"
+                                                       data-len="@((int?)f["LEN"])" data-dec="@((int?)f["DEC"] ?? 0)" autocomplete="off" />
+                                                @if (!string.IsNullOrEmpty(suffix)) {<span class="field-suffix">@suffix</span>}
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <input type="text" id="f_@col" class="@caseCls" data-col="@col" data-kind="text" data-check="@((string)f["CHECK"])"
+                                                   maxlength="@((int?)f["LEN"] ?? 30)" @((string)f["CHECK"] == "digits" ? "inputmode=numeric" : "") autocomplete="off" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="appAlertOverlay"></div>
+    <div class="popup-box alert-box" id="appAlertBox">
+        <div class="popup-header"><h2 id="appAlertTitle">Notice</h2></div>
+        <div class="alert-message" id="appAlertMessage"></div>
+        <div class="alert-actions">
+            <button type="button" class="btn-white" id="appAlertCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+            <button type="button" class="btn-blue" id="appAlertOk" style="width:auto;padding:5px 16px;">OK</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    var IS_EDIT = @(isEdit ? "true" : "false");
+    var IS_VIEW = @(isView ? "true" : "false");
+    var BY_UNIT = @(byUnit ? "true" : "false");
+    var META = @Html.Raw(ViewBag.MetaJson ?? "{}");
+    var DOC = @Html.Raw(ViewBag.DocJson ?? "{}");
+    var H = DOC.head || {};
+    var URL = {
+        lookup: '@Url.Action("GetLookup", ctl)',
+        save: '@Url.Action("Save", ctl)',
+        list: '@Url.Action("Index", ctl)'
+    };
+    var FIELDS = META.FIELDS || [];
+    var UNIT = H.UNIT || '';
+
+    $('#appAlertOverlay, #appAlertBox').appendTo(document.body);
+    function closeAlert() { $('#appAlertOverlay, #appAlertBox').fadeOut(120); }
+    function showAlert(message, onOk) { AppMsg.show(message, onOk); }
+    function showConfirm(message, onYes) {
+        $('#appAlertTitle').text('Confirm');
+        $('#appAlertMessage').text(message || '');
+        $('#appAlertCancel').show().off('click').on('click', closeAlert);
+        $('#appAlertOk').off('click').on('click', function () { closeAlert(); onYes(); });
+        $('#appAlertOverlay, #appAlertBox').fadeIn(120);
+    }
+    function failMsg(x, fallback) {
+        if (x && x.status === 440) {
+            showAlert((x.responseJSON && x.responseJSON.message) || 'Your session has expired. Please log in again.', function () { window.location.reload(); });
+            return;
+        }
+        if (x && x.statusText === 'abort') return;
+        showAlert((x && x.responseJSON && x.responseJSON.message) || fallback || 'Could not load data. Please try again.');
+    }
+    function iso(d) { return d ? String(d).substring(0, 10) : ''; }
+
+    // ---------------------------------------------------------------- numbers / digits
+    // Numbers: digits and one point, at most LEN digits before it and DEC after (VB validnumber).
+    $(document).on('keypress', 'input.num:not([readonly])', function (e) {
+        var ch = String.fromCharCode(e.which), dec = parseInt($(this).data('dec'), 10) || 0;
+        if (e.which < 32) return;
+        if (!/[0-9.]/.test(ch) || (ch === '.' && (dec === 0 || this.value.indexOf('.') >= 0))) e.preventDefault();
+    });
+    $(document).on('input', 'input.num:not([readonly])', function () {
+        var len = parseInt($(this).data('len'), 10) || 10, dec = parseInt($(this).data('dec'), 10) || 0;
+        var v = this.value.replace(/[^0-9.]/g, ''), dot = v.indexOf('.');
+        var ip = dot >= 0 ? v.substring(0, dot) : v, fp = dot >= 0 ? v.substring(dot + 1).replace(/\./g, '') : null;
+        var clean = ip.substring(0, len) + (fp !== null && dec > 0 ? '.' + fp.substring(0, dec) : '');
+        if (clean !== this.value) this.value = clean;
+    });
+    $(document).on('input', 'input[data-check="digits"]:not([readonly])', function () {
+        var clean = this.value.replace(/[^0-9]/g, '');
+        if (clean !== this.value) this.value = clean;
+    });
+    // VB ChkTCS_Click / ChkTds_Click: ticking one clears the other.
+    $(document).on('change', 'input[data-kind="check"]', function () {
+        var other = $(this).data('excludes');
+        if (this.checked && other) $('#f_' + other).prop('checked', false);
+    });
+
+    // ---------------------------------------------------------------- lookups
+    function pickedRow($input) {
+        var v = String($input.val() == null ? '' : $input.val()), data = [];
+        try { data = $input.inputpicker('data') || []; } catch (e) { data = []; }
+        for (var i = 0; i < data.length; i++) { if (String(data[i].CODE) === v) return data[i]; }
+        return null;
+    }
+    function showPickerList($orig) {
+        $orig.inputpicker('show');
+        $orig.next('.inputpicker-overflow-hidden').find('input').trigger($.Event('keyup', { keyCode: 0 }));
+    }
+    function visibleInput($orig) { return $orig.next('.inputpicker-overflow-hidden').find('input'); }
+    function openLookup($input) {
+        var col = $input.data('col');
+        $('.inputpicker-wrapped-list').remove();
+        if ($input.hasClass('inputpicker-original')) { setTimeout(function () { showPickerList($input); }, 0); return; }
+        $input.inputpicker({
+            url: URL.lookup,
+            urlParam: { field: col, unit: UNIT },
+            fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Name' }, { name: 'INFO', text: '' }],
+            fieldText: 'CODE', fieldValue: 'CODE',
+            headShow: true, filterOpen: true, autoOpen: true,
+            pagination: true, pageField: 'p', pageLimitField: 'limit', pageLimit: 10, pageCountField: 'count',
+            width: 'auto', urlDelay: 0.2, selectMode: 'empty'
+        });
+        setTimeout(function () { showPickerList($input); }, 0);
+        $input.off('change.ipk').on('change.ipk', function () {
+            var row = pickedRow($input);
+            $('#f_' + col + '_name').val(row ? (row.NAME || '') : '');
+        });
+        // Wiping the visible text empties an optional field.
+        visibleInput($input).on('input', function () {
+            if (!$(this).val() && $input.val()) { $input.val(''); $(this).data('value', ''); $('#f_' + col + '_name').val(''); }
+        });
+    }
+    // :not(.inputpicker-input): the plugin's visible box is a clone of the original (class lk-code
+    // included); opening a picker on the clone would write the pick into the clone, not #f_<COL>.
+    $(document).on('click focus', 'input.lk-code:not(.inputpicker-input)', function () {
+        if (IS_VIEW) return;
+        openLookup($(this));
+    });
+
+    // ---------------------------------------------------------------- load / revert
+    function fill() {
+        if (BY_UNIT) {
+            $('#UNIT_disp').val(UNIT);
+            $('#UNIT_name').val(H.UNIT_NAME || UNIT).attr('title', UNIT);
+        }
+        $('#CODE').val(H.CODE || '');
+        $('#hdrCode').text(H.CODE || '');
+        $('#NAME').val(H.NAME || '');
+        FIELDS.forEach(function (f) {
+            var $el = $('#f_' + f.COL), v = H[f.COL];
+            if (f.KIND === 'check') { $el.prop('checked', v === 'Y'); return; }
+            if (f.KIND === 'date') { $el.val(iso(v)); return; }
+            if (f.KIND === 'number') { $el.val(v == null || v === '' ? '' : String(v)); return; }
+            $el.val(v == null ? '' : v);
+            if (f.KIND === 'lookup' || f.KIND === 'account') {
+                $('#f_' + f.COL + '_name').val(H[f.COL + '_NAME'] || '');
+                // A built picker shows its own box: put the stored code back there too (Revert).
+                if ($el.hasClass('inputpicker-original')) visibleInput($el).val(v == null ? '' : v).data('value', v || '');
+            }
+        });
+    }
+    $('#btnRevert').on('click', function () { if (!IS_VIEW) fill(); });
+
+    function applyModeUi() {
+        if (IS_VIEW) {
+            $('input, select, textarea').prop('disabled', true);
+            $('input.lk-code').attr('placeholder', '');
+            $('#btnRevert').addClass('is-disabled').css({ opacity: .4, 'pointer-events': 'none' });
+        }
+    }
+
+    // ---------------------------------------------------------------- save (VB Command1_Click)
+    function value(f) {
+        var $el = $('#f_' + f.COL);
+        if (f.KIND === 'check') return $el.is(':checked') ? 'Y' : 'N';
+        var v = $.trim($el.val() || '');
+        if (f.CASE === 'U') v = v.toUpperCase(); else if (f.CASE === 'L') v = v.toLowerCase();
+        return v;
+    }
+    function validate() {
+        if (!$.trim($('#NAME').val())) return [META.NAME_LABEL + ' cannot be blank', '#NAME'];
+        if (!META.AUTO_CODE && !IS_EDIT && !$.trim($('#CODE').val())) return [META.CODE_LABEL + ' cannot be blank', '#CODE'];
+        for (var i = 0; i < FIELDS.length; i++) {
+            var f = FIELDS[i], v = value(f);
+            if (f.KIND === 'check') continue;
+            if (f.REQ && !v) return [f.LABEL + ' cannot be blank', '#f_' + f.COL];
+            if (v && f.CHECK === 'email' && !/^[^@@\s]+@@[^@@\s]+\.[^@@\s]+$/.test(v)) return [f.LABEL + ' is not a valid e-mail address.', '#f_' + f.COL];
+        }
+        return null;
+    }
+    function payload() {
+        var values = {};
+        FIELDS.forEach(function (f) { values[f.COL] = value(f); });
+        return {
+            UNIT: BY_UNIT ? UNIT : null,
+            CODE: IS_EDIT ? (H.CODE || '') : (META.AUTO_CODE ? '' : $.trim($('#CODE').val()).toUpperCase()),
+            NAME: $.trim($('#NAME').val()).toUpperCase(),
+            IsNew: !IS_EDIT,
+            VALUES: values
+        };
+    }
+
+    var saving = false;
+    $('#btnSave').on('click', function () {
+        if (IS_VIEW || saving) return;
+        var err = validate();
+        if (err) { showAlert(err[0], function () { $(err[1]).focus(); }); return; }
+        showConfirm('Are you sure?', function () {
+            saving = true;
+            $('#btnSave').prop('disabled', true);
+            $.ajax({ url: URL.save, type: 'POST', contentType: 'application/json', data: JSON.stringify(payload()) })
+                .done(function (resp) {
+                    if (resp && resp.success) {
+                        // kind 'success' explicitly: AppMsg guesses from the wording, and an edit's "... updated." read as a warning.
+                        AppMsg.show(resp.message || 'Saved successfully.', function () { window.location.href = URL.list; }, 'success');
+                    } else {
+                        showAlert((resp && resp.message) || 'Save failed.');
+                    }
+                })
+                .fail(function (x) { failMsg(x, 'Save failed.'); })
+                .always(function () { saving = false; $('#btnSave').prop('disabled', false); });
+        });
+    });
+
+    // ---------------------------------------------------------------- init
+    fill();
+    applyModeUi();
+    if (!IS_VIEW) setTimeout(function () { $(META.AUTO_CODE || IS_EDIT ? '#NAME' : '#CODE').focus(); }, 0);
+    $(window).on('beforeunload pagehide', function () { $('.inputpicker-wrapped-list').hide(); });
+})();
+</script>
+@Html.Partial("_RecordLock")
+</body>
+</html>

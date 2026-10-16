@@ -93,7 +93,7 @@
             <div class="accordion-container compact-accordion">
                 <div class="accordion">
                     <div class="accordion-header active"><span class="txt">Unit</span></div>
-                    <div class="accordion-body">
+                    <div class="accordion-body" style="display:block;">
                         <div class="form-row">
                             <div class="form-col-20">
                                 <label>Unit</label>
@@ -110,7 +110,7 @@
 
                 <div class="accordion">
                     <div class="accordion-header active"><span class="txt">Header</span></div>
-                    <div class="accordion-body">
+                    <div class="accordion-body" style="display:block;">
                         <div class="form-row">
                             <div class="form-col-20">
                                 <label>Withdrawl No</label>
@@ -487,9 +487,10 @@
         pending++;
         $.getJSON(URL.catQty, {
             withFrom: withFrom(), saleNo: $('#SALE_NO').val(), saleCentre: $('#SALE_CENTRE').val(),
-            invno: r.INVNO, mark: r.MARK, grade: r.GRADE, packDate: r.PACK_DATE
+            invno: r.INVNO, mark: r.MARK, grade: r.GRADE, packDate: r.PACK_DATE,
+            unit: UNIT, docno: IS_EDIT ? (H.DOCNO || '') : '', docdt: IS_EDIT ? iso(H.DOCDT) : ''
         }).done(function (d) {
-            if (d && d.FOUND) r.CAT_QTY_BAG = r3(d.CAT_QTY_BAG);
+            if (d && d.FOUND && num(d.CAT_QTY_BAG) > 0) r.CAT_QTY_BAG = r3(d.CAT_QTY_BAG);
         }).always(function () {
             pending--;
             recalcBags(r);
@@ -758,7 +759,10 @@
     // Bags, Total Gross Wt = Gross x Bags, Sample = the lot's sample, Kgs = Inv. Kgs - Sample (JST: the lot's
     // catalogue qty), Lot No = the catalogue's lot no, Season From / To = the packing's season.
     $('#btnStockOk').on('click', function () {
-        var picked = stockRows.filter(function (d) { return d._sel; });
+        // A lot already on the grid is not added again (a second OK / double click used to duplicate it).
+        var onGrid = {};
+        rows.forEach(function (r) { onGrid[lineKey(r)] = true; });
+        var picked = stockRows.filter(function (d) { return d._sel && !onGrid[lineKey(d)]; });
         if (!picked.length) { showAlert('Tag at least one lot.'); return; }
         if (rows.length + picked.length > MAX_LINES) { showAlert('A withdrawal can hold at most ' + MAX_LINES + ' lots.'); return; }
         picked.forEach(function (d) {

@@ -149,7 +149,7 @@ namespace TeaSaleManagement.Controllers
                     return RedirectToAction("Index");
                 }
                 ViewBag.IsEdit = false;
-                ViewBag.DocJson = JsonConvert.SerializeObject(new { head = ctx.Data, lines = new object[0] });
+                ViewBag.DocJson = ScriptJson.Serialize(new { head = ctx.Data, lines = new object[0] });
                 return View();
             }
 
@@ -194,7 +194,7 @@ namespace TeaSaleManagement.Controllers
             }
 
             ViewBag.IsEdit = true;
-            ViewBag.DocJson = JsonConvert.SerializeObject(r.Data);
+            ViewBag.DocJson = ScriptJson.Serialize(r.Data);
             return View();
         }
 

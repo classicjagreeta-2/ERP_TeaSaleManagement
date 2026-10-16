@@ -264,7 +264,7 @@
             });
 
             // "New" row: the Unit only (USER_SCHEMA_LINK) -- the sale type is picked on the entry screen (auction: always 4).
-            var UNIT_LIST = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(unitList));
+            var UNIT_LIST = @Html.Raw(TeaSaleManagement.ScriptJson.Serialize(unitList));
             function buildNewRow() {
                 // The Unit is an inputpicker dropdown (searchable by Code and Name) -- initialised
                 // right after the row is inserted, see initNewRowPickers().

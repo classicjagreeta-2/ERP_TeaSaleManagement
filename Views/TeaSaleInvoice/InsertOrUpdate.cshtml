@@ -106,7 +106,7 @@
             <div class="accordion-container compact-accordion">
                 <div class="accordion">
                     <div class="accordion-header active"><span class="txt">Unit / Sale Type</span></div>
-                    <div class="accordion-body">
+                    <div class="accordion-body" style="display:block;">
                         <div class="form-row">
                             <div class="form-col-20">
                                 <label>Unit</label>
@@ -131,7 +131,7 @@
 
                 <div class="accordion">
                     <div class="accordion-header active"><span class="txt">Header</span></div>
-                    <div class="accordion-body">
+                    <div class="accordion-body" style="display:block;">
                         <div class="form-row">
                             <div class="form-col-20">
                                 <label>Tax Invoice No</label>
@@ -656,6 +656,11 @@
             $('#' + id).prop('readonly', !canPick).attr('placeholder', canPick ? 'Click to select' : '');
         });
         $('#btnSaleNo').prop('disabled', locked);
+        // Auction: the lots are the Sold catalogue lots of this Sale No + Broker, so the Broker locks with them.
+        if (isAuction()) {
+            if (locked) dropPicker($('#BROK_CODE'));
+            $('#BROK_CODE').prop('readonly', locked).attr('placeholder', locked ? '' : 'Click to select');
+        }
         $('#SALE_DATE').prop('readonly', IS_EDIT || IS_VIEW);
         $('#btnSelectItems, #btnRemoveRows').toggleClass('is-disabled', IS_VIEW);
         if (IS_VIEW) {
@@ -813,6 +818,8 @@
             var perBag = r.TGROSS_WT / (oldValue === 0 ? 1 : oldValue);
             r.TNET_WT = r2(r.BAG_CHEST * r.NET_WT);
             r.TGROSS_WT = r2(r.BAG_CHEST * perBag);
+            // Keep the Damage popup's base in step with a typed Bags (else its next save would undo it).
+            if (r._baseBag !== undefined) { r._baseBag += r.BAG_CHEST - oldValue; r._baseGross = r2(r._baseBag * perBag); }
         }
         recalc(r);
     }
@@ -1192,7 +1199,8 @@
         var marks = {}, parties = {};
         rows.forEach(function (r) { marks[r.MARK] = 1; });
         sel.forEach(function (d) { marks[d.MARK] = 1; parties[d.PARTY || ''] = 1; });
-        if (Object.keys(marks).length > 1 && saleType() !== '1SH') { showAlert('Multiple Mark can\'t be selected togather'); return; }
+        // VB Command6: 1LT / CL / 1SP / 1SH / HL may take lots of several Marks.
+        if (Object.keys(marks).length > 1 && ['1LT', 'CL', '1SP', '1SH', 'HL'].indexOf(saleType()) < 0) { showAlert('Multiple Mark can\'t be selected togather'); return; }
         if (Object.keys(parties).length > 1) { showAlert('Multiple Party can\'t be selected togather'); return; }
 
         var docdt = $('#DESP_DATE').val();
@@ -1230,7 +1238,7 @@
     function openDamage(r) {
         $('#damageBody').html('<p class="picker-empty">Loading...</p>');
         $('#pickerOverlay, #damagePicker').fadeIn(120);
-        $.getJSON(URL.damage, { invno: r.INVNO, mark: r.MARK })
+        $.getJSON(URL.damage, { unit: UNIT, invno: r.INVNO, mark: r.MARK })
             .done(function (data) {
                 var list = (r.DAMAGES || []).map(function (d) { return $.extend({}, d); });
                 (data || []).forEach(function (a) {
@@ -1262,23 +1270,25 @@
     });
     $('#btnDamageSave').on('click', function () {
         if (!dmg || IS_VIEW) return;
-        var r = dmg.row, notReady = 0, srKgs = 0;
+        var r = dmg.row, delta = 0, srKgs = 0;
+        // Bags = the line's bags before any Damage save (_baseBag) +/- each package whose "Ready To Sale"
+        // differs from its state then (_initOk). Recomputed from that fixed base on every save, so saving
+        // the popup again without a change keeps the same Bags (it used to take the not-ready bags off again).
+        if (r._baseBag === undefined) { r._baseBag = r.BAG_CHEST; r._baseGross = r.TGROSS_WT; }
         $('#damageBody tr[data-i]').each(function () {
             var d = dmg.list[$(this).data('i')];
+            if (d._initOk === undefined) d._initOk = d._oldOk !== false;
             d.REMARK = $.trim($(this).find('.dmgRemark').val());
             d.TAG_OK = $(this).find('.dmgOk').is(':checked');
-            if (d.TAG_OK) {
-                srKgs += num(d.SR_KGS);
-                if (d._oldOk === false && IS_EDIT) r._oldBag += 1;
-            } else notReady++;
+            if (d.TAG_OK) srKgs += num(d.SR_KGS);
+            if (d.TAG_OK && !d._initOk) delta++;
+            if (!d.TAG_OK && d._initOk) delta--;
             d._oldOk = d.TAG_OK;
         });
-        var oldBag = r._oldBag;
-        r.BAG_CHEST = rc(oldBag - notReady);
+        r.BAG_CHEST = rc(r._baseBag + delta);
         r.OTHER_QTY = r3(srKgs);
         if (!IS_JST) r.TNET_WT = r3(r.NET_WT * r.BAG_CHEST);   // VB Command8: outside JST the Inv. Kgs follow the bags
-        if (oldBag > 0) r.TGROSS_WT = r3(r.TGROSS_WT / oldBag * r.BAG_CHEST);
-        r._oldBag = r.BAG_CHEST;
+        if (r._baseBag > 0) r.TGROSS_WT = r3(r._baseGross / r._baseBag * r.BAG_CHEST);
         // VB Command8: Bill Qty = Inv. Kgs - Other.
         r.BILL_QTY = r3(r.TNET_WT - r.OTHER_QTY);
         r.AMOUNT = r2(r.BILL_QTY * r.RATE);
