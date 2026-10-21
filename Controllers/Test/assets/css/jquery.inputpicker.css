@@ -186,3 +186,11 @@
     background-color: #404e68 !important;
     color: #ffffff !important;
 }
+
+/* Header = slate #404e68 as the grid headers, white bold (2026-10-19, user) */
+.inputpicker-wrapped-list .table > thead > tr > th {
+    background-color: #404e68 !important;
+    border-color: #404e68 !important;
+    color: #ffffff !important;
+    font-weight: bold !important;
+}
