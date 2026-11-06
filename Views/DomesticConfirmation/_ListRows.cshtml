@@ -1,0 +1,77 @@
+@* Table rows for the Domestic Confirmation list (VB6 TRN_OFFER_CONF.frm, pConf_tag "D"; one row per
+   confirmation, carrying its own sale type). Rendered by Index.cshtml for the first chunk and returned on
+   its own (Request.IsAjaxRequest) for every further chunk the list's infinite scroll asks for -- see
+   Scripts/list-infinite-scroll.js and DomesticConfirmationController.Index. ViewBag.RowOffset keeps the
+   "+" expand ids unique across chunks. *@
+@model List<TeaSaleManagement.Controllers.DomConfRow>
+@{
+    var rowIndex = (int?)ViewBag.RowOffset ?? 0;
+    // The Conf No is a link into View mode only for users holding the View right (AEDV) -- UX only:
+    // DomesticConfirmationController.InsertOrUpdate re-checks the right server-side.
+    var canView = (ViewBag.Permission as TeaSaleManagement.Helpers.AEDV)?.View ?? false;
+}
+@if (Model != null)
+{
+    foreach (var row in Model)
+    {
+        rowIndex++;
+        var detailId = "rowDetail" + rowIndex;
+        var dt = row.DOCDT?.ToString("yyyy-MM-dd");
+        <tr class="data-row"@TeaSaleManagement.Utility.RecordLock.RowAttrs(ViewBag.Locks, row.UNIT, row.DOCNO, row.DOCDT, row.SALE_TYPE)>
+            <td>
+                <input type="checkbox" class="row-check" value="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT" data-st="@row.SALE_TYPE" data-inv="@row.INV_NO" />
+            </td>
+            <td style="text-align:center;">
+                <i class="fa fa-plus row-expand-btn" data-target="@detailId" title="Show lines" style="cursor:pointer;"></i>
+            </td>
+            <td title="@row.UNIT">@TeaSaleManagement.UnitScope.Name(row.UNIT, ViewBag.UnitList as List<TeaSaleManagement.Models.PT.UnitOption>)</td>
+            <td>@row.SALE_TYPE</td>
+            <td>
+                @if (canView)
+                {
+                    <a href="@Url.Action("InsertOrUpdate", "DomesticConfirmation", new { unit = row.UNIT, docno = row.DOCNO, docdt = dt, saleType = row.SALE_TYPE, view = true })">@row.DOCNO</a>
+                }
+                else
+                {
+                    @row.DOCNO
+                }
+            </td>
+            <td>@(row.DOCDT?.ToString("dd/MM/yyyy"))</td>
+            <td>@(string.IsNullOrWhiteSpace(row.PCD) ? row.PARTY_NAME : row.PCD + " - " + row.PARTY_NAME)</td>
+            <td title="@row.SALE_CENTRE">@row.SALE_CENTRE_NAME</td>
+            <td class="num">@((row.BAGS ?? 0).ToString("0.##"))</td>
+            <td class="num">@((row.ORDER_QTY ?? 0).ToString("0.00"))</td>
+            <td class="num">@((row.AMT ?? 0).ToString("0.00"))</td>
+            <td>@row.INV_NO</td>
+        </tr>
+        <tr class="row-detail" id="@detailId" style="display:none;" data-docno="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT" data-st="@row.SALE_TYPE">
+            <td colspan="12" style="background:#f8f9fc;padding:10px 12px;">
+                <div style="overflow-x:auto;">
+                    <table class="detail-sub-table">
+                        <thead>
+                            <tr>
+                                <th style="width:34px;">Sl</th>
+                                <th>Mark</th>
+                                <th>Inv No</th>
+                                <th>Pack Date</th>
+                                <th>Grade</th>
+                                <th class="num">Pkgs</th>
+                                <th class="num">Net Wt.</th>
+                                <th class="num">Inv. Kgs.</th>
+                                <th class="num">Kgs</th>
+                                <th class="num">Sample</th>
+                                <th class="num">Other</th>
+                                <th class="num">Rate</th>
+                                <th class="num">Amount (Rs.)</th>
+                                <th>Warehouse</th>
+                            </tr>
+                        </thead>
+                        <tbody class="detail-items-body">
+                            <tr><td colspan="14" style="text-align:center;color:#666;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    }
+}

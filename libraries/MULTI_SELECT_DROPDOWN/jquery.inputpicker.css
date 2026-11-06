@@ -247,3 +247,119 @@
 .inputpicker-wrapped-list tr.inputpicker-element:nth-child(even) {
     background-color: #fbfbfb;
 }
+
+/* =====================================================================
+   One look for every dropdown of the project (CLAUDE.md "Dropdowns: one look").
+   The same block is at the end of all four copies of jquery.inputpicker.css.
+   The ID in the selectors makes it win over the older per-view rules.
+   ===================================================================== */
+
+/* Text box: white, room for the arrow button */
+.inputpicker-div > input.form-control {
+    padding-right: 28px;
+    background-color: #fff;
+}
+
+/* Arrow: a plain grey caret inside the box, as Tea Sale Management (2026-10-19; was a grey-blue button, navy before) */
+.inputpicker-div > .inputpicker-arrow {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 22px;
+    height: auto;
+    background-color: transparent;
+    border: 0 none;
+    z-index: 5;
+    pointer-events: auto;
+}
+
+    .inputpicker-div > .inputpicker-arrow b {
+        border-color: #888 transparent transparent;
+        border-width: 5px 4px 0;
+        margin-left: -4px;
+        margin-top: -2px;
+    }
+
+    .inputpicker-div > .inputpicker-arrow:hover {
+        background-color: transparent;
+    }
+
+/* List: as wide as its columns, small text */
+#inputpicker-wrapped-list.inputpicker-wrapped-list {
+    font-size: 12px;
+    min-width: max-content !important;
+    max-width: 90vw !important;
+}
+
+    #inputpicker-wrapped-list.inputpicker-wrapped-list .table {
+        font-size: 12px;
+        width: max-content !important;
+        min-width: max(100%, 300px); /* a little wider than its columns */
+        margin-bottom: 0;
+        border: 1px solid #cccccc;
+    }
+
+        /* Header = slate #404e68 as the grid headers, white bold (2026-10-19, user) */
+        #inputpicker-wrapped-list.inputpicker-wrapped-list .table > thead > tr > th {
+            background-color: #404e68 !important;
+            padding: 6px !important;
+            color: #fff !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            border: 1px solid #ddd !important;
+            white-space: nowrap;
+        }
+
+        #inputpicker-wrapped-list.inputpicker-wrapped-list .table > tbody > tr > td {
+            font-size: 12px;
+            padding: 6px !important;
+            border: 1px solid #ddd;
+            white-space: nowrap;
+        }
+
+    /* Picked / highlighted row: slate, white bold text (2026-10-19, user: as Tea Sale Management's Clerk Master) */
+    #inputpicker-wrapped-list.inputpicker-wrapped-list tr.inputpicker-active,
+    #inputpicker-wrapped-list.inputpicker-wrapped-list tr.inputpicker-active td,
+    #inputpicker-wrapped-list.inputpicker-wrapped-list tr.inputpicker-active th,
+    #inputpicker-wrapped-list.inputpicker-wrapped-list tr.inputpicker-highlight-active td {
+        background-color: #e8ebf1 !important;
+        color: #222 !important;
+        font-weight: 700 !important;
+    }
+
+    #inputpicker-wrapped-list.inputpicker-wrapped-list tr.inputpicker-selected td {
+        background-color: #d9edf7 !important;
+    }
+
+    /* Pager: no bigger than the rows */
+    #inputpicker-wrapped-list.inputpicker-wrapped-list .inputpicker-pagination td {
+        font-size: 11px !important;
+        line-height: 1.4;
+        padding: 4px 5px !important;
+        color: #555;
+        white-space: nowrap;
+    }
+
+    #inputpicker-wrapped-list.inputpicker-wrapped-list .inputpicker-pagination a {
+        font-size: 11px !important;
+        padding: 0 3px;
+        color: #404e68;
+    }
+
+    #inputpicker-wrapped-list.inputpicker-wrapped-list .inputpicker-pagination span.current-page {
+        min-width: 18px;
+        font-size: 11px !important;
+    }
+
+/* The report forms' check-box lists draw like every other dropdown (2026-10-18): the page's font, not Arial, and a
+   normal header, not capitals (the older "Broker picker" rules above set both) */
+#inputpicker-wrapped-list.inputpicker-wrapped-list .table,
+#inputpicker-wrapped-list.inputpicker-wrapped-list .table > thead > tr > th,
+#inputpicker-wrapped-list.inputpicker-wrapped-list .table > tbody > tr > td {
+    font-family: inherit;
+}
+
+#inputpicker-wrapped-list.inputpicker-wrapped-list .table > thead > tr > th {
+    text-transform: none;
+    letter-spacing: normal;
+}

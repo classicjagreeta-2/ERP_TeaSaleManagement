@@ -1,0 +1,20 @@
+@* Toolbar of the HS report forms: Cancel (reload the form) / Close (menu) and the REPORT badge. *@
+<div class="header-content">
+    <div class="action-btns">
+        <ul>
+            <li>
+                <a href="@Url.Action("Index", ViewContext.RouteData.Values["controller"].ToString(), new { area = "" })">
+                    <i class="fa fa-times"></i> Cancel
+                </a>
+            </li>
+            <li>
+                <a href="@Url.Action("Index", "Menu", new { area = "" })">
+                    <i class="fa fa-arrow-left"></i> Close
+                </a>
+            </li>
+            <li style="margin-left:auto">
+                <label class="btn btn-inverse pull-right" style="margin:10px;">REPORT</label>
+            </li>
+        </ul>
+    </div>
+</div>

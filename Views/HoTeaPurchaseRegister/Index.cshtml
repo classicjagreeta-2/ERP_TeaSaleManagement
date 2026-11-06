@@ -1,0 +1,120 @@
+@{
+    ViewBag.Title = "Tea Purchase Register";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.Partial("_HsReportHead")
+
+<div class="general-container">
+    <div class="rpt-details">
+        @Html.Partial("_HsReportToolbar")
+
+        <div class="header-details">
+            <div class="row">
+                <div class="col-md-4 align-items-center">
+                    <div class="header-left"><div class="title-heading">Tea Purchase Register</div></div>
+                </div>
+                <div class="col-md-8 d-flex justify-content-end align-items-center" style="padding-right:2.2%">
+                    @Html.Partial("_HsReportButtons")
+                </div>
+            </div>
+
+            <div class="accordion-container">
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Header</span></div>
+                    <div class="accordion-body" style="display:block;">
+                        <div class="form-row">
+                            <div class="form-col-15">
+                                <label>From Date <span>(*)</span></label>
+                                <div class="date-field">
+                                    <input type="text" id="FromDate" class="form-control sr-date" autocomplete="off" data-default="@ViewBag.FinancialYearFrom" />
+                                    <img src="@Url.Content("~/libraries/assetspo/images/calendar.png")" alt="calendar" class="calendar-icon sr-cal" data-target="#FromDate" />
+                                </div>
+                            </div>
+                            <div class="form-col-15">
+                                <label>To Date <span>(*)</span></label>
+                                <div class="date-field">
+                                    <input type="text" id="ToDate" class="form-control sr-date" autocomplete="off" data-default="@ViewBag.DefaultDate" />
+                                    <img src="@Url.Content("~/libraries/assetspo/images/calendar.png")" alt="calendar" class="calendar-icon sr-cal" data-target="#ToDate" />
+                                </div>
+                            </div>
+                            <div class="form-col-20">
+                                <label>Select Unit <span>(*)</span></label>
+                                <div id="Unit_holder"></div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Select Purchase Type <span>(*)</span></label>
+                                <div id="PurType_holder"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-30">
+                                <label>Select Document</label>
+                                <div id="Documents_holder"></div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Select Purchase Location</label>
+                                <div id="Locations_holder"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-30">
+                                <label>Select Report Option</label>
+                                <div class="sr-radio">
+                                    <label><input type="radio" name="Option" value="D" checked /> Details</label>
+                                    <label><input type="radio" name="Option" value="P" /> Party Wise</label>
+                                    <label><input type="radio" name="Option" value="S" /> Summary</label>
+                                </div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Based On</label>
+                                <div class="sr-radio">
+                                    <label><input type="radio" name="Garden" value="own" /> Own Garden</label>
+                                    <label><input type="radio" name="Garden" value="other" /> Other Garden</label>
+                                    <label><input type="radio" name="Garden" value="both" checked /> Both</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <br />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@Html.Partial("_HsReportScripts")
+<script>
+    $(function () {
+        HsReport.init({ title: "Tea Purchase Register", fyFrom: "@ViewBag.FinancialYearFrom", fyTo: "@ViewBag.FinancialYearTo" });
+        var lookup = '@Url.Action("Lookup", "HoTeaPurchaseRegister")';
+        function reloadDocs() { HsReport.reload("Documents"); }
+        HsReport.picker({ id: "Unit", multiple: false, placeholder: "Select Unit", width: "320px",
+            load: function () { return $.getJSON('@Url.Action("Units", "HoTeaPurchaseRegister")'); }, onChange: reloadDocs });
+        HsReport.picker({ id: "PurType", multiple: false, placeholder: "Select Purchase Type",
+            load: function () { return $.getJSON(lookup, { what: "GetPurchaseTypes" }); }, onChange: reloadDocs });
+        HsReport.picker({ id: "Documents", width: "420px",
+            fields: [{ name: "CODE", text: "DOC NO", width: "110px" }, { name: "DESCN", text: "BILL NO", width: "160px" }, { name: "DOCDT", text: "DATE", width: "90px" }],
+            load: function () {
+                return $.getJSON(lookup, { what: "GetDocuments", purType: HsReport.value("PurType"), unit: HsReport.value("Unit"),
+                    fromDate: $("#FromDate").val(), toDate: $("#ToDate").val() });
+            } });
+        HsReport.picker({ id: "Locations", load: function () { return $.getJSON(lookup, { what: "GetPurchaseLocations" }); } });
+        $("#FromDate, #ToDate").on("change", reloadDocs);
+
+        $(".out-btn").on("click", function () {
+            if (!HsReport.checkPeriod("FromDate", "ToDate")) return;
+            if (!HsReport.value("PurType")) { HsReport.alert("Select the Purchase Type."); return; }
+            HsReport.open('@Url.Action("Report", "HoTeaPurchaseRegister")', {
+                fromDate: $("#FromDate").val(),
+                toDate: $("#ToDate").val(),
+                purType: HsReport.value("PurType"),
+                unit: HsReport.value("Unit"),
+                documents: HsReport.codes("Documents"),
+                locations: HsReport.codes("Locations"),
+                option: $("input[name=Option]:checked").val(),
+                garden: $("input[name=Garden]:checked").val(),
+                outputType: $(this).data("output")
+            });
+        });
+    });
+</script>

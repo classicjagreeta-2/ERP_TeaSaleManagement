@@ -1,0 +1,104 @@
+@{
+    ViewBag.Title = "Souda Book Register";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.Partial("_HsReportHead")
+
+<div class="general-container">
+    <div class="rpt-details">
+        @Html.Partial("_HsReportToolbar")
+
+        <div class="header-details">
+            <div class="row">
+                <div class="col-md-4 align-items-center">
+                    <div class="header-left"><div class="title-heading">Souda Book Register</div></div>
+                </div>
+                <div class="col-md-8 d-flex justify-content-end align-items-center" style="padding-right:2.2%">
+                    @Html.Partial("_HsReportButtons")
+                </div>
+            </div>
+
+            <div class="accordion-container">
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Header</span></div>
+                    <div class="accordion-body" style="display:block;">
+                        <div class="form-row">
+                            <div class="form-col-15">
+                                <label>From Date <span>(*)</span></label>
+                                <div class="date-field">
+                                    <input type="text" id="FromDate" class="form-control sr-date" autocomplete="off" data-default="@ViewBag.FinancialYearFrom" />
+                                    <img src="@Url.Content("~/libraries/assetspo/images/calendar.png")" alt="calendar" class="calendar-icon sr-cal" data-target="#FromDate" />
+                                </div>
+                            </div>
+                            <div class="form-col-15">
+                                <label>To Date <span>(*)</span></label>
+                                <div class="date-field">
+                                    <input type="text" id="ToDate" class="form-control sr-date" autocomplete="off" data-default="@ViewBag.DefaultDate" />
+                                    <img src="@Url.Content("~/libraries/assetspo/images/calendar.png")" alt="calendar" class="calendar-icon sr-cal" data-target="#ToDate" />
+                                </div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Select Sales Type</label>
+                                <div id="SaleTypes_holder"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-30">
+                                <label>Select Garden</label>
+                                <div id="Gardens_holder"></div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Select Destination</label>
+                                <div id="Destinations_holder"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-30">
+                                <label>Select Report Option</label>
+                                <div class="sr-radio">
+                                    <label><input type="radio" name="Option" value="A" checked /> All</label>
+                                    <label><input type="radio" name="Option" value="H" /> Pending (HO)</label>
+                                    <label><input type="radio" name="Option" value="D" /> Pending (DI)</label>
+                                </div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Crop</label>
+                                <div class="sr-radio">
+                                    <label><input type="radio" name="Crop" value="A" checked /> All</label>
+                                    <label><input type="radio" name="Crop" value="N" /> New Crop</label>
+                                    <label><input type="radio" name="Crop" value="O" /> Old Crop</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <br />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@Html.Partial("_HsReportScripts")
+<script>
+    $(function () {
+        HsReport.init({ title: "Souda Book Register", fyFrom: "@ViewBag.FinancialYearFrom", fyTo: "@ViewBag.FinancialYearTo" });
+        var lookup = '@Url.Action("Lookup", "SoudaBookRegister")';
+        HsReport.picker({ id: "SaleTypes", load: function () { return $.getJSON(lookup, { what: "GetSaleTypes" }); } });
+        HsReport.picker({ id: "Gardens", load: function () { return $.getJSON(lookup, { what: "GetGardens" }); } });
+        HsReport.picker({ id: "Destinations", load: function () { return $.getJSON(lookup, { what: "GetDestinations" }); } });
+
+        $(".out-btn").on("click", function () {
+            if (!HsReport.checkPeriod("FromDate", "ToDate")) return;
+            HsReport.open('@Url.Action("Report", "SoudaBookRegister")', {
+                fromDate: $("#FromDate").val(),
+                toDate: $("#ToDate").val(),
+                saleTypes: HsReport.codes("SaleTypes"),
+                gardens: HsReport.codes("Gardens"),
+                destinations: HsReport.codes("Destinations"),
+                option: $("input[name=Option]:checked").val(),
+                crop: $("input[name=Crop]:checked").val(),
+                outputType: $(this).data("output")
+            });
+        });
+    });
+</script>

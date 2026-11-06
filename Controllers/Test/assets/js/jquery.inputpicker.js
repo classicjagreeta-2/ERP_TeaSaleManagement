@@ -51,6 +51,9 @@
                     // Initiate input
                     input.val('').data('inputpicker-uuid', uuid).addClass('inputpicker-input').prop('id', 'inputpicker-' + uuid).prop('name', 'inputpicker-' + uuid);
 
+                    // The text box fills the whole dropdown, up to the arrow
+                    input.css({ width: '100%', boxSizing: 'border-box' });
+
                     // Inputpicker div ( wrap fake input and arrow )
                     var inputpicker_div = $("<div id=\"inputpicker-div-" + uuid + "\" class=\"inputpicker-div\" data-uuid=\"" + uuid + "\" style=\"position:relative;overflow:auto;height:100%;\"><span class=\"inputpicker-arrow\" data-uuid=\"" + uuid + "\" onclick=\"$(this).parent().find('input').inputpicker('toggle');event.stopPropagation();\"><b></b></span></div>")
                         .append(input)

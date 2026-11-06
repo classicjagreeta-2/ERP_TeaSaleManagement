@@ -51,6 +51,9 @@
                     // Initiate input
                     input.val('').data('inputpicker-uuid', uuid).addClass('inputpicker-input').prop('id', 'inputpicker-' + uuid).prop('name', 'inputpicker-' + uuid);
 
+                    // The text box fills the whole dropdown, up to the arrow (2026-10-16)
+                    input.css({ width: '100%', boxSizing: 'border-box' });
+
                     // Inputpicker div ( wrap fake input and arrow )
                     var inputpicker_div = $("<div id=\"inputpicker-div-" + uuid + "\" class=\"inputpicker-div\" data-uuid=\"" + uuid + "\" style=\"position:relative;overflow:auto;height:100%;\"><span class=\"inputpicker-arrow\" data-uuid=\"" + uuid + "\" onclick=\"$(this).parent().find('input').inputpicker('toggle');event.stopPropagation();\"><b></b></span></div>")
                         .append(input)
@@ -139,6 +142,15 @@
 
                 // Set default value for fieldText
                 if (!settings['fieldText']) settings['fieldText'] = settings['fieldValue'];
+
+                // Show the name and keep the code as the value (2026-10-16): a picker that would show its
+                // value field (CODE) shows the first NAME / DESC field of its list instead. showName: false keeps the code.
+                if (settings['showName'] !== false && settings['fieldText'] === settings['fieldValue'] && settings['selectMode'] !== 'creatable') {
+                    for (var fi = 0; fi < settings['fields'].length; fi++) {
+                        var fn = typeof settings['fields'][fi] == 'object' ? settings['fields'][fi]['name'] : settings['fields'][fi];
+                        if (fn && fn !== settings['fieldValue'] && /NAME|DESC/i.test(fn)) { settings['fieldText'] = fn; break; }
+                    }
+                }
 
                 // Set default value for fields
                 if (!settings['fields'].length) {
@@ -403,13 +415,15 @@
                     //_alert('input[name=' + _name(input) + '] is not visible.');
                     return;
                 }
-                else if (_uuid(_getWrappedList()) == uuid) {
+                else if (_uuid(_getWrappedList()) == uuid && !(_localPaging(input) && _set(input, 'searching'))) {
                     dd('_getWrappedList().show()');
                     _getWrappedList().show();
                 }
                 else {
                     dd('_render');
                     _set(input, 'pageCurrent', 1);   // start fresh at page 1 on open
+                    // a list paged in the browser opens whole (not filtered by the picked value's text)
+                    if (_localPaging(input)) _set(input, 'searching', false);
                     _getWrappedList(input).show();
                     _dataRender(input);
                 }
@@ -1086,7 +1100,35 @@
         }
     }
 
+    // Paging in the browser (2026-10-18, every Bought Leaf dropdown searchable with First / Prev / Next / Last): a list the
+    // server does not page - data given to the picker, or a url that answers with the whole list (no page count) - is
+    // searched as it is typed and shown 'limit' (10) rows a page. localPaging: false switches it off for one picker.
+    // Same rules as libraries/Test/assets/js/jquery.inputpicker.js.
+    function _serverPaged(input) {
+        var s = _set(input, 'serverPaged');     // set by _loadData from the reply
+        if (typeof s == 'boolean') return s;
+        return !!(_set(input, 'url') && _set(input, 'pagination'));
+    }
+
+    function _localPaging(input) {
+        return _set(input, 'localPaging') !== false && !_serverPaged(input);
+    }
+
+    // the list of the single-select render: the current page of the filtered rows
     function _filterData(input) {
+        var data = _filterDataAll(input);
+        if (!_localPaging(input) || !_isArray(data)) return data;
+        var limit = parseInt(_set(input, 'limit')) || 10;
+        var pages = Math.max(1, Math.ceil(data.length / limit));
+        var page = parseInt(_set(input, 'pageCurrent')) || 1;
+        if (page > pages) page = pages;
+        if (page < 1) page = 1;
+        _set(input, 'pageCurrent', page);
+        _set(input, 'pageCount', data.length);
+        return data.slice((page - 1) * limit, page * limit);
+    }
+
+    function _filterDataAll(input) {
         var fields = _set(input, 'fields');
         var fieldValue = _set(input, 'fieldValue');
         var filterType = _set(input, 'filterType');
@@ -1099,7 +1141,8 @@
         // var page = ( typeof page == 'undefined' || page < 1 ) ? 1 : parseInt(page);
         // dd(data, limit, page);
 
-        if (!_set(input, 'filterOpen') || !input_value_low || _set(input, 'url') || !_isArray(data)) {
+        if ((!_set(input, 'filterOpen') && (!_localPaging(input) || !_set(input, 'searching'))) || !input_value_low
+            || (_set(input, 'url') && _serverPaged(input)) || !_isArray(data)) {
             return data;
         }
 
@@ -1157,8 +1200,8 @@
      * @private
      */
     function _getPageData(input) {
-        var allData = _filterData(input);
-        var paginated = !!(_pagination(input) && !_set(input, 'url'));
+        var allData = _filterDataAll(input);
+        var paginated = _localPaging(input);
         var limit = parseInt(_set(input, 'limit')) || 10;
         var current = parseInt(_set(input, 'pageCurrent')) || 1;
         var totalPages = 1;
@@ -1253,7 +1296,7 @@
     function _renderPaginationFooter(input) {
         var fields = _set(input, 'fields');
         var output = "";
-        if (fields.length > 0 && _pagination(input)) {
+        if (fields.length > 0 && (_pagination(input) || _localPaging(input))) {
             var fields = _set(input, 'fields');
             output += '<tfoot class="inputpicker-pagination"><tr><td align="right" colspan="' + fields.length + '">';
             output += "<div style=\"width:100%;\">";
@@ -1888,7 +1931,11 @@
             _execJSON(input, param, function (ret) {
                 var data;
 
-                if (_pagination(input)) {
+                // a reply with a page count is a server-paged list; any other reply is the whole list, paged here
+                var serverCount = !_isArray(ret) && ret && typeof ret[_set(input, 'pageCountField')] != 'undefined';
+                _set(input, 'serverPaged', !!(_pagination(input) && serverCount));
+
+                if (_pagination(input) && serverCount) {
                     _set(input, 'pageCount', ret[_set(input, 'pageCountField')]);
                 }
 
@@ -1948,6 +1995,17 @@
      * @private
      * @return true - value changed, false - not changed
      */
+    function _showTextStart(input) {
+        setTimeout(function () {
+            var el = input && input[0];
+            if (!el) return;
+            if (document.activeElement === el && el.setSelectionRange) {
+                try { el.setSelectionRange(0, 0); } catch (e) { }
+            }
+            el.scrollLeft = 0;
+        }, 0);
+    }
+
     function _setValue(input, value) {
 
         // if ( typeof )
@@ -2001,6 +2059,9 @@
 
             if (index_i > -1) {
                 input.val(data[index_i][fieldText]);
+                // Show the start of the text, not its end (2026-10-16): the box kept the caret after the last letter
+                // and scrolled, so the left part of a long name was cut off.
+                _showTextStart(input);
                 input.data('value', data[index_i][fieldValue]); // Check if it is equal the original when selectMode is empty
                 original.val(data[index_i][fieldValue]);
             }
@@ -2286,7 +2347,7 @@
     function _eventKeyDown(e) {
         var input = $(this);
         var _searchTerm = input.val();
-        if (_searchTerm.length > 0 && _searchTerm.length < 3) {
+        if (_set(input, 'url') && _searchTerm.length > 0 && _searchTerm.length < 3) {
             return;
             // Do nothing if it's less than 3 characters   
         }
@@ -2379,9 +2440,10 @@
         debugger;
         var input = $(this);
         var _searchTerm = input.val();
-        if (_searchTerm.length > 0 && _searchTerm.length < 3) {
+        // a server list is asked only from 3 characters on; a list in the page is searched at once
+        if (_set(input, 'url') && _searchTerm.length > 0 && _searchTerm.length < 3) {
             return;
-            // Do nothing if it's less than 3 characters   
+            // Do nothing if it's less than 3 characters
         }
         var original = _o(input);
         var wrapped_list = _getWrappedList();
@@ -2398,6 +2460,9 @@
             return;
         }
 
+        // a new search starts on page 1
+        _set(input, 'pageCurrent', 1);
+        _set(input, 'searching', true);
 
         // Keyword changes
         if (_set(input, 'url')) {
@@ -2448,7 +2513,7 @@
             // });
         }
         else {
-            if (_set(input, 'filterOpen')) {  // Need to render with filtering
+            if (_set(input, 'filterOpen') || _localPaging(input)) {  // Need to render with filtering
                 _set(input, 'pageCurrent', 1);   // new search - back to page 1
                 _dataRender(input);
             }
@@ -2619,6 +2684,9 @@
          */
         filterOpen: false,
 
+        // a list the server does not page is paged (and searched) in the browser - see _localPaging
+        localPaging: true,
+
         /**
          * Choose the method of filtering
          * 'start' - start filtering from the beginning
@@ -2696,3 +2764,6 @@
 
     $.fn.inputpicker.elements = [{}];
 });
+
+// Show the start of a dropdown's text when the box is left (2026-10-16)
+jQuery(document).on('blur', 'input.inputpicker-input', function () { this.scrollLeft = 0; });
