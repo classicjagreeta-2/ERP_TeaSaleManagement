@@ -89,7 +89,7 @@
                 return unit ? $.getJSON(lookup, { what: "GetSaleTypes", tt: tt, unit: unit }) : [];
             },
             onChange: reloadInvoices });
-        HsReport.picker({ id: "Invoices", width: "420px", placeholder: "Select Inv No", allText: "",
+        HsReport.picker({ id: "Invoices", width: "420px", placeholder: "Select Inv No", allText: "", emptyText: "No invoices for this Unit / Sales Type / period",
             fields: [{ name: "CODE", text: "INVOICE NO", width: "160px" }, { name: "DESP_DATE", text: "DATE", width: "90px" }, { name: "PCODE", text: "PARTY", width: "80px" }],
             load: function () {
                 var unit = HsReport.value("Unit"), st = HsReport.value("SaleType");

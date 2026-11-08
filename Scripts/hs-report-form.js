@@ -86,7 +86,7 @@
             if (list && list.error) { p.rows = []; render(p, "", "-"); alertBox(list.error); return; }
             p.rows = $.isArray(list) ? list : (list && list.data) || [];
             var single = !p.multiple && p.auto && p.rows.length === 1;
-            render(p, p.multiple ? p.allText : (single ? p.rows[0].CODE : ""), p.rows.length ? p.placeholder : "None found");
+            render(p, p.multiple ? p.allText : (single ? p.rows[0].CODE : ""), p.rows.length ? p.placeholder : (p.emptyText || "None found"));
             if (single && p.onChange) p.onChange(p.rows[0].CODE, p.rows[0]);
             return p.rows;
         }, function () {

@@ -109,6 +109,16 @@ namespace TeaSaleManagement.Models.Report.HoSales
             left.AddCell(Cell(string.Join("\n", new[] { addr, phone, "GSTIN : " + S(inv, "GSTIN"), tomco }.Where(x => x.Trim() != "")), F(Arial, 9)));
             var cin = "CIN NO : " + S(inv, "CIN_NO") + (S(inv, "PAN_NO") != "" ? "  PAN : " + S(inv, "PAN_NO") : "") + (S(inv, "FSSAI_NO") != "" ? "  FSSAI NO. : " + S(inv, "FSSAI_NO") : "");
             left.AddCell(Cell(cin, F(ArialB, 9)));
+            // Group logos: Neptune on the left, Bando on the right of the seller block.
+            var logoL = Logo("neptune.png"); var logoR = Logo("bando.png");
+            if (logoL != null || logoR != null)
+            {
+                var framed = Table(1100, 5600, 1100);
+                framed.AddCell(LogoCell(logoL));
+                framed.AddCell(new PdfPCell(left) { Border = Rectangle.NO_BORDER, Padding = 0 });
+                framed.AddCell(LogoCell(logoR));
+                left = framed;
+            }
             var right = Table(1);
             right.AddCell(Cell(copy >= 1 && copy <= 4 ? CopyNames[copy] : "", F(Arial, 9), Element.ALIGN_CENTER, Rectangle.BOTTOM_BORDER));
             var qr = S(inv, "SIGNEDQRCODE");
@@ -265,6 +275,23 @@ namespace TeaSaleManagement.Models.Report.HoSales
             bank.AddCell(Box(bl, Rectangle.LEFT_BORDER | Rectangle.BOTTOM_BORDER));
             bank.AddCell(Box(sig, Rectangle.LEFT_BORDER | Rectangle.RIGHT_BORDER | Rectangle.BOTTOM_BORDER));
             doc.Add(bank);
+        }
+
+        private static Image Logo(string file)
+        {
+            try
+            {
+                var path = System.Web.Hosting.HostingEnvironment.MapPath("~/Content/logos/" + file);
+                if (path == null || !File.Exists(path)) return null;
+                return Image.GetInstance(path);
+            }
+            catch { return null; }
+        }
+
+        private static PdfPCell LogoCell(Image img)
+        {
+            if (img == null) return new PdfPCell(new Phrase(" ")) { Border = Rectangle.NO_BORDER };
+            return new PdfPCell(img, true) { Border = Rectangle.NO_BORDER, Padding = 4, HorizontalAlignment = Element.ALIGN_CENTER, VerticalAlignment = Element.ALIGN_MIDDLE };
         }
 
         private static PdfPTable Party(JToken inv, string p, string caption)

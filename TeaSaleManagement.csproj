@@ -375,6 +375,8 @@
     <Compile Include="Utility\Utilities.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Content\logos\bando.png" />
+    <Content Include="Content\logos\neptune.png" />
     <Content Include="Content\assets\css\font-awesome.min.css" />
     <Content Include="Content\assets\css\jquery-ui.css" />
     <Content Include="Content\assets\css\voucher-entry-responsive.css" />
