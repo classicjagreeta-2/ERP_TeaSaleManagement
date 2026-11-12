@@ -4,7 +4,7 @@
     Layout = null;
     ViewBag.Title = "Classic ERP Packet Sales Export";
     var ccUser = TeaSaleManagement.Utility.SessionHelper.GetUser();
-    var ccUserName = ccUser.getUserName ?? "";
+    var ccUserName = ccUser.getUserfullName ?? "";
     var ccInitials = ccUserName.Length >= 2 ? ccUserName.Substring(0, 2).ToUpper() : ccUserName.ToUpper();
     var ccModuleName = ccUser.ModuleName;
     var ccCompany = Session["currentCompany"] as string;
@@ -24,6 +24,80 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" crossorigin="anonymous">
     <style>
+
+        .cc-context {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: stretch !important;
+            flex-wrap: nowrap !important;
+            gap: 6px !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            margin-left: 1rem !important;
+        }
+
+        .cc-context-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: .45rem !important;
+            flex: 1 1 50% !important;
+            width: 50% !important;
+            max-width: max-content !important;
+            min-width: 0 !important;
+            padding: .35rem .65rem !important;
+            border-radius: 999px !important;
+            background: var(--cc-navy-50) !important;
+            color: var(--cc-navy) !important;
+            font-size: .78rem !important;
+            font-weight: 600 !important;
+            overflow: hidden !important;
+        }
+
+            /* First badge stays on one line */
+            .cc-context-item:first-child .cc-context-text {
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            /* Second badge allows two lines */
+            .cc-context-item:last-child .cc-context-text {
+                white-space: normal !important;
+                overflow-wrap: break-word !important;
+                line-height: 1.25 !important;
+                min-width: 0 !important;
+            }
+
+            .cc-context-item:last-child {
+                align-items: center !important;
+            }
+        /* Keep user name in a single line */
+
+
+        .cc-user {
+            display: flex !important;
+            align-items: center !important;
+            flex: 0 0 auto !important;
+            flex-wrap: nowrap !important;
+            white-space: nowrap !important;
+        }
+
+        .cc-user-text {
+            flex: 0 0 auto !important;
+            white-space: nowrap !important;
+            text-align: right !important;
+        }
+
+        .cc-user-name {
+            white-space: nowrap !important;
+            display: block !important;
+            width: max-content !important;
+            max-width: none !important;
+        }
+
+        .cc-user-role {
+            white-space: nowrap !important;
+        }
         :root {
             --cc-navy: #002164; --cc-navy-800: #0B2C73; --cc-navy-50: #EEF2FA; --cc-navy-100: #E1E8F5;
             --cc-orange: #FE4D00; --cc-orange-50: #FFF2EB;
@@ -153,7 +227,7 @@
                     <circle class="cc-dot" cx="62" cy="62" r="24" />
                     <text x="140" y="60" font-family="Inter, Arial, sans-serif" font-size="66" font-weight="700" fill="currentColor" letter-spacing="-1.5">classic</text>
                     <text x="140" y="118" font-family="Inter, Arial, sans-serif" font-size="66" font-weight="700" fill="currentColor" textLength="440" lengthAdjust="spacingAndGlyphs">consultants</text>
-                    <text class="cc-tag" x="142" y="158" font-family="Inter, Arial, sans-serif" font-size="21" font-weight="500" textLength="436" lengthAdjust="spacing">solutions. not just softwares.</text>
+                    <text class="cc-tag" x="100" y="158" font-family="Inter, Arial, sans-serif" font-size="31" font-weight="500" textLength="436" lengthAdjust="spacing">solutions. not just softwares.</text>
                 </svg>
                 <span class="cc-product">Classic ERP</span>
                 @if (!string.IsNullOrWhiteSpace(ccModuleName) || (ccCompany ?? "").Trim(' ', ',', '[', ']') != "")
@@ -217,7 +291,7 @@
                     <h1 class="ws-title" id="wsTitle">Company selection</h1>
                 </div>
                 <div class="ws-meta">
-                    <span>User Name : <strong>@TeaSaleManagement.Utility.SessionHelper.GetUser().getUserName</strong></span>
+                    <span>User Name : <strong>@TeaSaleManagement.Utility.SessionHelper.GetUser().getUserfullName</strong></span>
                     @if (TeaSaleManagement.Utility.SessionHelper.GetUser().lastLoginDt != null)
                     {
                         <span>Your Last Login Date : @TeaSaleManagement.Utility.SessionHelper.GetUser().lastLoginDt.Value.ToString("dd MMM yyyy, hh:mm tt")</span>

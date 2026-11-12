@@ -76,7 +76,19 @@ namespace TeaSaleManagement.Controllers
                     //Response.Cookies.Remove("cc_timeout");
                     //Response.Cookies.Add(new HttpCookie("cc_timeout", "true"));
 
-                    return Json(new { result = "Redirect", url = Url.Action("SelectModule", "Module") }, JsonRequestBehavior.AllowGet);
+                    //    return Json(new { result = "Redirect", url = Url.Action("SelectModule", "Module") }, JsonRequestBehavior.AllowGet);
+                    //}
+                    string lastLogin = Return.Data.lastLoginDt.HasValue
+         ? Return.Data.lastLoginDt.Value.ToString("dd-MMM-yyyy hh:mm:ss tt")
+         : "No previous login found";
+
+                    return Json(new
+                    {
+                        result = "Redirect",
+                        url = Url.Action("SelectModule", "Module"),
+                        username = Return.Data.firstName,
+                        lastLogin = lastLogin
+                    }, JsonRequestBehavior.AllowGet);
                 }
                 else
                 {
