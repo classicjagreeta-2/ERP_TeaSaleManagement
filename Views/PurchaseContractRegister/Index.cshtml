@@ -1,0 +1,113 @@
+@{
+    ViewBag.Title = "Purchase Contract Register";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.Partial("_HsReportHead")
+
+<div class="general-container">
+    <div class="rpt-details">
+        @* Toolbar: Cancel / Close and the two outputs of this report (Excel, HTML). *@
+        <div class="header-content">
+            <div class="action-btns">
+                <ul>
+                    <li>
+                        <a href="@Url.Action("Index", "PurchaseContractRegister", new { area = "" })">
+                            <i class="fa fa-times"></i> Cancel
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@Url.Action("Index", "Menu", new { area = "" })">
+                            <i class="fa fa-arrow-left"></i> Close
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="out-btn" data-output="Excel" title="Download as Excel (.xlsx)">
+                            <i class="fa fa-file-excel-o"></i> Excel
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="out-btn" data-output="Html" title="HTML page in a new tab">
+                            <i class="fa fa-file-code-o"></i> HTML
+                        </a>
+                    </li>
+                    <li style="margin-left:auto">
+                        <label class="btn btn-inverse pull-right" style="margin:10px;">REPORT</label>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="header-details">
+            <div class="row">
+                <div class="col-md-12 align-items-center">
+                    <div class="header-left"><div class="title-heading">Purchase Contract Register</div></div>
+                </div>
+            </div>
+
+            <div class="accordion-container">
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Header</span></div>
+                    <div class="accordion-body" style="display:block;">
+                        <div class="form-row">
+                            <div class="form-col-15">
+                                <label>From Date <span>(*)</span></label>
+                                <div class="date-field">
+                                    <input type="text" id="FromDate" class="form-control sr-date" autocomplete="off" data-default="@ViewBag.DefaultDate" />
+                                    <img src="@Url.Content("~/libraries/assetspo/images/calendar.png")" alt="calendar" class="calendar-icon sr-cal" data-target="#FromDate" />
+                                </div>
+                            </div>
+                            <div class="form-col-15">
+                                <label>To Date <span>(*)</span></label>
+                                <div class="date-field">
+                                    <input type="text" id="ToDate" class="form-control sr-date" autocomplete="off" data-default="@ViewBag.DefaultDate" />
+                                    <img src="@Url.Content("~/libraries/assetspo/images/calendar.png")" alt="calendar" class="calendar-icon sr-cal" data-target="#ToDate" />
+                                </div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Date On</label>
+                                <div class="sr-check">
+                                    <label><input type="checkbox" class="date-by" value="E" checked /> Entry Date</label>
+                                    <label><input type="checkbox" class="date-by" value="C" /> Contract Date</label>
+                                </div>
+                            </div>
+                            <div class="form-col-30">
+                                <label>Purchase Type</label>
+                                <div id="PurTypes_holder"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <br />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@Html.Partial("_HsReportScripts")
+<script>
+    $(function () {
+        HsReport.init({ title: "Purchase Contract Register", fyFrom: "@ViewBag.FinancialYearFrom", fyTo: "@ViewBag.FinancialYearTo" });
+        HsReport.picker({
+            id: "PurTypes",
+            load: function () { return $.getJSON('@Url.Action("Lookup", "PurchaseContractRegister")', { what: "GetPurchaseTypes" }); }
+        });
+
+        // Entry Date / Contract Date: exactly one is ticked at a time.
+        $(".date-by").on("change", function () {
+            $(".date-by").not(this).prop("checked", false);
+            $(this).prop("checked", true);
+        });
+
+        $(".out-btn").on("click", function (e) {
+            e.preventDefault();
+            if (!HsReport.checkPeriod("FromDate", "ToDate")) return;
+            HsReport.open('@Url.Action("Report", "PurchaseContractRegister")', {
+                fromDate: $("#FromDate").val(),
+                toDate: $("#ToDate").val(),
+                dateBy: $(".date-by:checked").val() || "E",
+                purTypes: HsReport.codes("PurTypes"),
+                outputType: $(this).data("output")
+            });
+        });
+    });
+</script>
