@@ -228,6 +228,7 @@
     <Content Include="Views\Shared\_HsReportButtons.cshtml" />
     <Content Include="Views\Shared\_HsReportScripts.cshtml" />
     <Content Include="Views\SoudaBookRegister\Index.cshtml" />
+    <Content Include="Views\PurchaseContractRegister\Index.cshtml" />
     <Content Include="Views\HoTeaPurchaseRegister\Index.cshtml" />
     <Content Include="Views\TaxInvoiceRegister\Index.cshtml" />
     <Content Include="Views\UnsoldList\Index.cshtml" />
@@ -255,6 +256,7 @@
     <Compile Include="Controllers\HS\TeaSampleReceiveController.cs" />
     <Compile Include="Controllers\HS\Reports\HoReportControllerBase.cs" />
     <Compile Include="Controllers\HS\Reports\SoudaBookRegisterController.cs" />
+    <Compile Include="Controllers\HS\Reports\PurchaseContractRegisterController.cs" />
     <Compile Include="Controllers\HS\Reports\HoTeaPurchaseRegisterController.cs" />
     <Compile Include="Controllers\HS\Reports\TaxInvoiceRegisterController.cs" />
     <Compile Include="Controllers\HS\Reports\UnsoldListController.cs" />
