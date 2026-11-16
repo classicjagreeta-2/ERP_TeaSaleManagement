@@ -504,8 +504,10 @@ namespace TeaSaleManagement.Models.Report
                         if (v == null || v == DBNull.Value) { blank(row, i + 1, st.Xf(font, fill, border, 0, align)); continue; }
                         if (v is DateTime)
                         {
-                            widths[i] = Math.Max(widths[i], 11);
-                            put(row, i + 1, "<c r=\"" + ColRef(i + 1, row) + "\" s=\"" + st.Xf(font, fill, border, 14, "center") + "\"><v>"
+                            // A column whose format carries a time ("dd/MM/yyyy HH:mm:ss") shows date + time (built-in 22), else the date (14).
+                            bool withTime = (s.Columns[i].Format ?? "").IndexOf('H') >= 0;
+                            widths[i] = Math.Max(widths[i], withTime ? 17 : 11);
+                            put(row, i + 1, "<c r=\"" + ColRef(i + 1, row) + "\" s=\"" + st.Xf(font, fill, border, withTime ? 22 : 14, "center") + "\"><v>"
                                 + (((DateTime)v) - new DateTime(1899, 12, 30)).TotalDays.ToString("0.######", Inv) + "</v></c>");
                         }
                         else if (IsNumeric(v))
