@@ -40,6 +40,7 @@ namespace TeaSaleManagement.Utility
             // Tea Sale Management (HS) -- all in the factory schema
             "PrivateSaleInvoice", "AuctionSaleInvoice", "AuctionRelease", "AuctionCatalogue",
             "WithdrawlEntry", "TeaSampleReceive", "SaudaEntry", "DomesticConfirmation",
+            "TeaTasting", "OutturnSample", "SampleDrawEntry",
             // HS "Masters" (Controllers\HS\Masters)
             "VehicleTypeMaster", "VehicleMaster", "TransporterMaster", "ClerkMaster", "RouteMaster",
             "CentreMaster", "WeighmentPointMaster", "DriverMaster", "HelperMaster",
