@@ -117,9 +117,10 @@ namespace TeaSaleManagement.Controllers
                     string bankName = bk == null ? "" : pick(bk, "COMP_NAME"),
                            acNo = bk == null ? "" : pick(bk, "AC_NO"),
                            ifsc = bk == null ? "" : pick(bk, "RTGS_CODE"),
+                           Company = bk == null ? "" : pick(bk, "COMP_NAME"),
                            branch = bk == null ? "" : (pick(bk, "BRANCH") + " " + pick(bk, "ADD1")).Trim();
 
-                    inv["BANK_BEN_NAME"] = bk == null ? "" : company;
+                    inv["BANK_BEN_NAME"] = bk == null ? "" : Company;
                     inv["BANK_ACNO"] = acNo;
                     inv["BANK_NAME"] = bankName;
                     inv["BANK_BRANCH"] = branch;
