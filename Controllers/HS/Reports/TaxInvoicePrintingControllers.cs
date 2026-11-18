@@ -114,7 +114,7 @@ namespace TeaSaleManagement.Controllers
                     if (acode != "") banks.TryGetValue(acode, out bk);
 
                     // No static defaults: empty bank code or no finance row gives empty fields.
-                    string bankName = bk == null ? "" : pick(bk, "COMP_NAME"),
+                    string bankName = bk == null ? "" : pick(bk, "BANK_NAME"),
                            acNo = bk == null ? "" : pick(bk, "AC_NO"),
                            ifsc = bk == null ? "" : pick(bk, "RTGS_CODE"),
                            Company = bk == null ? "" : pick(bk, "COMP_NAME"),
