@@ -127,6 +127,10 @@ namespace TeaSaleManagement.Controllers
                     {
                         userinfo.getToken = Return.Data.accessToken;
                         userinfo.getUserName = Return.Data.username;
+                        userinfo.getUserfullName = Return.Data.firstName;
+                        DateTime portalLastLogin;
+                        userinfo.lastLoginDt = Return.Data.lastLoginDt
+                            ?? (DateTime.TryParse(LastLoginDt, out portalLastLogin) ? portalLastLogin : (DateTime?)null);
                         //Helpers.UserInfo.getToken = Return.Data.accessToken;
                         //Helpers.UserInfo.getUserName = Return.Data.username;
                     }
@@ -138,6 +142,22 @@ namespace TeaSaleManagement.Controllers
             userinfo.ControlSchema = controlschema;
             userinfo.MenuSchema = menuschema;
             userinfo.ModuleName = mname;
+            if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(userinfo.getUserName))
+            {
+                try
+                {
+                    var mods = await Services.GetAsync<List<MODULE>>(string.Format("/api/Module/GetAllByUser?Username={0}", userinfo.getUserName));
+                    var mod = (mods != null && mods.IsSuccessStatusCode && mods.Data != null)
+                        ? mods.Data.FirstOrDefault(m => string.Equals(m.MODULE_CODE, code, StringComparison.OrdinalIgnoreCase))
+                        : null;
+                    if (mod != null && !string.IsNullOrWhiteSpace(mod.MODULE_NAME))
+                        userinfo.ModuleName = mod.MODULE_NAME;
+                }
+                catch (Exception ex)
+                {
+                    logger.Warn(ex, "Module name lookup failed");
+                }
+            }
             _ModuleCode = code;
             Utility.SessionHelper.SetUser(userinfo);
             var responce = await Services.GetAsync<List<CompanySelection>>(string.Format("/api/Company/GetByModule?module={0}", code));
