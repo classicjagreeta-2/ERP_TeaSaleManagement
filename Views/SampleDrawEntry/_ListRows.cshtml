@@ -1,0 +1,79 @@
+@* Table rows for the Sample Drawing Entry list (one row per document). Rendered by Index.cshtml for the
+   first chunk and returned on its own (Request.IsAjaxRequest) for every further chunk the list's
+   infinite scroll asks for -- see Scripts/list-infinite-scroll.js and SampleDrawEntryController.Index.
+   ViewBag.RowOffset keeps the "+" expand ids unique across chunks. *@
+@model List<TeaSaleManagement.Controllers.SampleDrawEntryRow>
+@{
+    var rowIndex = (int?)ViewBag.RowOffset ?? 0;
+    // The Doc No is a link into View mode only for users holding the View right (AEDV) -- UX only:
+    // SampleDrawEntryController.InsertOrUpdate re-checks the right server-side.
+    var canView = (ViewBag.Permission as TeaSaleManagement.Helpers.AEDV)?.View ?? false;
+}
+@if (Model != null)
+{
+    foreach (var row in Model)
+    {
+        rowIndex++;
+        var detailId = "rowDetail" + rowIndex;
+        var dt = row.DOCDT?.ToString("yyyy-MM-dd");
+        <tr class="data-row"@TeaSaleManagement.Utility.RecordLock.RowAttrs(ViewBag.Locks, row.UNIT, row.DOCNO, row.DOCDT, "WH")>
+            <td>
+                <input type="checkbox" class="row-check" value="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT" />
+            </td>
+            <td style="text-align:center;">
+                <i class="fa fa-plus row-expand-btn" data-target="@detailId" title="Show sampled lots" style="cursor:pointer;"></i>
+            </td>
+            <td title="@row.UNIT">@TeaSaleManagement.UnitScope.Name(row.UNIT, ViewBag.UnitList as List<TeaSaleManagement.Models.PT.UnitOption>)</td>
+            <td>
+                @if (canView)
+                {
+                    <a href="@Url.Action("InsertOrUpdate", "SampleDrawEntry", new { unit = row.UNIT, docno = row.DOCNO, docdt = dt, view = true })">@row.DOCNO</a>
+                }
+                else
+                {
+                    @row.DOCNO
+                }
+            </td>
+            <td>@(row.DOCDT?.ToString("dd/MM/yyyy"))</td>
+            <td title="@row.SALE_TYPE">@(string.IsNullOrEmpty(row.SALE_TYPE_NAME) ? row.SALE_TYPE : row.SALE_TYPE_NAME)</td>
+            <td title="@row.SALE_CENTRE">@(string.IsNullOrEmpty(row.SALE_CENTRE_NAME) ? row.SALE_CENTRE : row.SALE_CENTRE_NAME)</td>
+            <td title="@row.WAREHOUSE">@(string.IsNullOrEmpty(row.WAREHOUSE_NAME) ? row.WAREHOUSE : row.WAREHOUSE_NAME)</td>
+            <td title="@row.BROK_CODE">@(string.IsNullOrEmpty(row.BROKER_NAME) ? row.BROK_CODE : row.BROKER_NAME)</td>
+            <td title="@row.PCODE">@(string.IsNullOrEmpty(row.PARTY_NAME) ? row.PCODE : row.PARTY_NAME)</td>
+            <td class="num">@((row.LINES ?? 0).ToString("0"))</td>
+            <td class="num">@((row.TOTAL_BAGS ?? 0).ToString("0.##"))</td>
+            <td class="num">@((row.TOTAL_DRAW ?? 0).ToString("0.000"))</td>
+        </tr>
+        <tr class="row-detail" id="@detailId" style="display:none;" data-docno="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT">
+            <td colspan="13" style="background:#f8f9fc;padding:10px 12px;">
+                <div style="overflow-x:auto;">
+                    <table class="detail-sub-table">
+                        <thead>
+                            <tr>
+                                <th style="width:34px;">Sl</th>
+                                <th>Sale No</th>
+                                <th>Sale Date</th>
+                                <th>Prompt Date</th>
+                                <th>Inv No</th>
+                                <th>Mark</th>
+                                <th>AWR No</th>
+                                <th>AWR Date</th>
+                                <th>Pack Date</th>
+                                <th>Grade</th>
+                                <th class="num">Bag/Chest</th>
+                                <th class="num">Net Wt</th>
+                                <th class="num">Total Net Wt</th>
+                                <th class="num">Chest No</th>
+                                <th class="num">Draw Qty</th>
+                                <th>Lot No</th>
+                            </tr>
+                        </thead>
+                        <tbody class="detail-items-body">
+                            <tr><td colspan="16" style="text-align:center;color:#666;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    }
+}
