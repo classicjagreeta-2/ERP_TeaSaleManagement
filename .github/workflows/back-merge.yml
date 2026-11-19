@@ -1,0 +1,52 @@
+# Automatic back-merge, so fixes made on Release or Main are never lost:
+#   push to Main    -> PR Main -> Release
+#   push to Release -> PR Release -> Release_Next
+# (When the Main -> Release PR merges, the push to Release triggers the next hop automatically.)
+#
+# The PR is set to auto-merge with a MERGE COMMIT (never squash), so it completes by itself once
+# the required checks pass and it has the required approval. If there is a conflict, the PR stays
+# open: a developer resolves it in Visual Studio's merge editor on a uatfix/hotfix branch.
+#
+# Needs secret AUTOMATION_TOKEN (GitHub App or fine-grained PAT). The built-in GITHUB_TOKEN would
+# open the PR but would NOT trigger the required checks, so auto-merge would wait forever.
+name: back-merge
+
+on:
+  push:
+    branches: [Main, Release]
+
+concurrency:
+  group: back-merge-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  back-merge:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+      REPO: ${{ github.repository }}
+      SOURCE: ${{ github.ref_name }}
+    steps:
+      - name: Open and auto-merge back-merge PR
+        run: |
+          if [ "$SOURCE" = "Main" ]; then TARGET=Release; else TARGET=Release_Next; fi
+
+          CHANGED=$(gh api "repos/$REPO/compare/$TARGET...$SOURCE" --jq '.files | length')
+          if [ "$CHANGED" = "0" ]; then
+            echo "$TARGET already has every file change from $SOURCE - nothing to back-merge."
+            exit 0
+          fi
+
+          PR=$(gh pr list -R "$REPO" --base "$TARGET" --head "$SOURCE" --state open --json url --jq '.[0].url // empty')
+          if [ -z "$PR" ]; then
+            PR=$(gh pr create -R "$REPO" --base "$TARGET" --head "$SOURCE" \
+                 --title "Back-merge $SOURCE → $TARGET" \
+                 --body "Automatic back-merge after a change on **$SOURCE** ($CHANGED file(s)), so the fix is not lost in the next release. Merged with a merge commit.")
+            echo "Opened $PR"
+          else
+            echo "Back-merge PR already open: $PR"
+          fi
+
+          gh pr merge "$PR" -R "$REPO" --merge --auto \
+            || echo "::warning::Could not enable auto-merge on $PR - merge it manually (Create a merge commit)."
+          echo "### Back-merge $SOURCE → $TARGET: $PR" >> "$GITHUB_STEP_SUMMARY"
