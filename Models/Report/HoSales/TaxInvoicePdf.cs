@@ -10,7 +10,8 @@ using System.Linq;
 namespace TeaSaleManagement.Models.Report.HoSales
 {
     /// <summary>
-    /// Tax Invoice / Challan print of the HS "Tax Invoice Printing" and "Export Invoice Printing (TT)" screens --
+    /// Tax Invoice / Challan print of the HS "Tax Invoice Printing" screen (ERP_PacketSalesExport holds a copy,
+    /// Models\Report\TaxInvoicePdf.cs, for its "Export Invoice Printing" -- keep the two alike) --
     /// redraws the old Crystal reports (TaxInvoiceJST, TaxInvoiceJST_HUL, TaxInvoiceROS) with iTextSharp, one page
     /// set per invoice and copy (Original for Recipient / Duplicate for Transporter / Triplicate for Supplier /
     /// Extra Copy). The invoice data comes from the API (HoTaxInvoicePrint/Print); LAYOUT picks the line table:

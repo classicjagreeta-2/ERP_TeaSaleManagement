@@ -1,0 +1,695 @@
+@{
+    string screenName = (string)ViewBag.ScreenName;
+    ViewBag.Title = screenName;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    bool isEdit = ViewBag.IsEdit ?? false;
+    bool isView = ViewBag.IsView ?? false;
+}
+
+<!doctype html>
+<html lang="en">
+<head>
+    <link href="~/libraries/assetspo/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order.css">
+    <link rel="stylesheet" href="~/libraries/assetspo/css/purchase-order-responsive.css">
+    <!-- Root UI lookup convention: Buyer / Sale Centre / Ports and the lot list's Mark / Category filters
+         are jquery.inputpicker dropdowns. -->
+    <link href="~/Controllers/Test/assets/css/jquery.inputpicker.css" rel="stylesheet" />
+    <script src="~/libraries/assetspo/js/custom.js"></script>
+    <script src="~/Controllers/Test/assets/js/jquery.inputpicker.js"></script>
+    <style>
+        .inputpicker-wrapped-list .inputpicker-active td,
+        .inputpicker-wrapped-list .inputpicker-active th { background: #404e68 !important; color: #fff !important; font-weight: bold; }
+        .inputpicker-wrapped-list { min-width: max-content !important; }
+        .inputpicker-wrapped-list table { width: max-content !important; }
+        input[readonly], input:disabled, select:disabled, textarea:disabled { background-color: #f3f4f7; color: #555; }
+        .accordion-container.compact-accordion { height: auto; overflow-y: visible; }
+        .accordion-container.main-accordion { height: auto; overflow-y: visible; }
+        .form-col-40 { width: 40%; padding: 0 10px; margin-bottom: 10px; }
+        #gridTable th, #gridTable td { white-space: nowrap; }
+        #gridTable td input[type="checkbox"] { min-width: 0; width: auto; }
+        #gridTable td.num, #gridTable th.num, #gridTable tfoot td { text-align: right; }
+        #gridTable td input.cell { min-width: 0; box-sizing: border-box; padding: 3px 6px; font-size: 12px; }
+        #gridTable td input.cell-sample { width: 90px; text-align: right; }
+        #gridTable td input.cell-ship { width: 260px; }
+        #gridTable th.key, #gridTable td.key { background: #fffdf0; }
+        textarea.ship { width: 100%; min-height: 70px; resize: vertical; box-sizing: border-box; }
+        input.num { text-align: right; }
+        .total-box { font-weight: bold; text-align: right; }
+        .popup-box.picker-box { display: none; width: fit-content; min-width: 560px; max-width: min(1080px, 92vw); padding: 14px 16px; }
+        .popup-box.picker-box h2 { font-size: 16px; }
+        .popup-box .picker-body { max-height: 52vh; overflow: auto; margin-top: 8px; }
+        .popup-box .picker-body table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+        .popup-box .picker-body th { text-align: left; background: #f4f6fa; padding: 6px 8px; border-bottom: 2px solid #ddd; color: #333; position: sticky; top: 0; }
+        .popup-box .picker-body th.num, .popup-box .picker-body td.num { text-align: right; }
+        .popup-box .picker-body td { padding: 5px 8px; border-bottom: 1px solid #eee; cursor: pointer; color: #222; white-space: nowrap; }
+        .popup-box .picker-body tr:hover td { background: #eef3ff; }
+        .popup-box .picker-empty { margin: 10px 4px 2px; font-size: 12px; color: #666; }
+        .stock-filters { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+        .stock-filters input[type="text"] { width: 170px; }
+        .stock-filters input[type="date"] { width: 150px; }
+        .stock-filters label { margin: 0; font-weight: normal; font-size: 12px; }
+        .stock-filters .inputpicker-overflow-hidden, .stock-filters .inputpicker-div { overflow: hidden !important; height: auto !important; max-width: 100%; }
+        .stock-filters .inputpicker-div input { display: block; }
+        .popup-box.alert-box { width: 440px; max-width: 92vw; display: none; }
+        .popup-box.alert-box .alert-message { max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+        .popup-box.alert-box .alert-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .action-btns li a.is-disabled, .action-btns li button:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div class="general-container">
+        <div class="purchase-details">
+            <div class="header-content">
+                <div class="action-btns">
+                    <ul>
+                        <li><a href="@Url.Action("Index", "OutturnSample")"><i class="fa fa-arrow-left"></i> Back</a></li>
+                        <li><button type="button" id="btnSave" @(isView ? "disabled" : "")><i class="fa fa-floppy-o"></i> Save</button></li>
+                        <li><a href="@Url.Action("Index", "OutturnSample")"><i class="fa fa-times"></i> Revert</a></li>
+                        <li style="margin-left:auto">
+                            <label class="btn btn-inverse pull-right" style="margin:0; border:none;">
+                                Status : <span id="statusText">@(isView ? "View" : isEdit ? "Edit" : "Add")</span>
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+                <div class="header-details">
+                    <div class="left">
+                        <div class="order-code">
+                            <div class="txt"><div class="title-heading">@screenName</div></div>
+                        </div>
+                        <div class="title-heading">DOCUMENT NO. : <span id="hdrDocNo"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container compact-accordion">
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Unit</span></div>
+                    <div class="accordion-body" style="display:block;">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Unit</label>
+                                <input type="hidden" id="UNIT_disp" />
+                                <input type="text" id="UNIT_name" readonly />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-container main-accordion">
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Header</span></div>
+                    <div class="accordion-body" style="display:block;">
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Document No</label>
+                                <input type="text" id="DOCNO" readonly placeholder="(auto)" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Document Date <span>(*)</span></label>
+                                <input type="date" id="DOCDT" min="@ViewBag.MinDocDate" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Sale Type</label>
+                                @* pConf_tag "E": Export Sale ('5'), fixed. *@
+                                <input type="hidden" id="SALE_TYPE" />
+                                <input type="text" id="SALE_TYPE_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Sale Centre <span>(*)</span></label>
+                                <input type="text" id="SALE_CENTRE" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Sale Centre Name</label>
+                                <input type="text" id="SALE_CENTRE_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Buyer <span>(*)</span></label>
+                                <input type="text" id="PCD" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-40">
+                                <label>Buyer Name</label>
+                                <input type="text" id="PCD_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Country</label>
+                                <input type="text" id="COUNTRY_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Buyer Ref. No</label>
+                                <input type="text" id="REF_NO" maxlength="20" autocomplete="off" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-20">
+                                <label>Port of Loading</label>
+                                <input type="text" id="PORT_LOAD" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>&nbsp;</label>
+                                <input type="text" id="PORT_LOAD_disp" readonly />
+                            </div>
+                            <div class="form-col-20">
+                                <label>Port of Discharge</label>
+                                <input type="text" id="PORT_DISCH" placeholder="Click to select" autocomplete="off" />
+                            </div>
+                            <div class="form-col-20">
+                                <label>&nbsp;</label>
+                                <input type="text" id="PORT_DISCH_disp" readonly />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col-50">
+                                <label>Shipping Mark <small style="font-weight:normal;color:#666;">(used for every lot whose own Shipping Mark is blank)</small></label>
+                                <textarea id="SHIP_MARK" class="ship" maxlength="500"></textarea>
+                            </div>
+                            <div class="form-col-15">
+                                <label>Total Bags</label>
+                                <input type="text" id="TOTAL_BAGS" class="num total-box" readonly value="0" />
+                            </div>
+                            <div class="form-col-15">
+                                <label>Total Inv. Kgs.</label>
+                                <input type="text" id="TOTAL_NET" class="num total-box" readonly value="0.00" />
+                            </div>
+                            <div class="form-col-15">
+                                <label>Total Sample</label>
+                                <input type="text" id="TOTAL_SAMPLE" class="num total-box" readonly value="0.00" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion">
+                    <div class="accordion-header active"><span class="txt">Lot Details</span></div>
+                    <div class="accordion-body active" style="display:block;">
+                        <div class="action-btns">
+                            <ul>
+                                <li><a href="javascript:void(0)" id="btnSelectInv"><i class="fa fa-search"></i> Select Lots</a></li>
+                                <li><a href="javascript:void(0)" id="btnRemoveRows"><i class="fa fa-trash-o"></i> Remove Selected</a></li>
+                            </ul>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="border" id="gridTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:26px;"><input type="checkbox" id="chkAll" /></th>
+                                        <th style="width:30px;">Sl.</th>
+                                        <th>Mark</th>
+                                        <th>Inv No.</th>
+                                        <th>Pack Date</th>
+                                        <th>Grade</th>
+                                        <th>Category</th>
+                                        <th class="num">Bags</th>
+                                        <th class="num">Inv. Kgs.</th>
+                                        <th class="key num">Sample</th>
+                                        <th class="key">Approved</th>
+                                        <th class="key">Shipping Mark</th>
+                                        <th>Confirmation</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gridBody"></tbody>
+                                <tfoot>
+                                    <tr class="total">
+                                        <td colspan="7" style="text-align:right;">Total</td>
+                                        <td id="ftBags"></td>
+                                        <td id="ftTnet"></td>
+                                        <td id="ftSample"></td>
+                                        <td colspan="3"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="pickerOverlay"></div>
+
+    <!-- VB6 "GardenInv_List" (Against Confirmation): the buyer's confirmed lots not issued yet. -->
+    <div class="popup-box picker-box" id="invPicker">
+        <div class="popup-header">
+            <h2>Confirmed Lot List</h2>
+            <button type="button" class="close-btn" id="invClose">X</button>
+        </div>
+        <div class="stock-filters">
+            <label>Confirmation Date From</label>
+            <input type="date" id="invFromDate" />
+            <label>To</label>
+            <input type="date" id="invToDate" />
+            <label>Mark</label>
+            <input type="text" id="invMark" placeholder="Select Mark" autocomplete="off" />
+            <label>Category</label>
+            <input type="text" id="invCategory" placeholder="Select Category" autocomplete="off" />
+            <button type="button" id="btnInvRefresh" class="btn-blue" style="width:auto;padding:5px 14px;">Refresh</button>
+        </div>
+        <div class="stock-filters">
+            <input type="text" id="invFind" placeholder="Inv No. / find (any column)..." style="width:260px;" autocomplete="off" />
+            <button type="button" id="btnInvSelectAll" class="btn-white" style="width:auto;padding:5px 14px;">Select All</button>
+            <button type="button" id="btnInvDeselectAll" class="btn-white" style="width:auto;padding:5px 14px;">De-Select All</button>
+            <span id="invCount" style="font-size:12px;color:#666;"></span>
+        </div>
+        <div class="picker-body" id="invBody"></div>
+        <div style="text-align:right;padding-top:10px;">
+            <button type="button" class="btn-blue" id="btnInvOk" style="width:auto;padding:5px 16px;">OK</button>
+            <button type="button" class="btn-white" id="btnInvCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="appAlertOverlay"></div>
+    <div class="popup-box alert-box" id="appAlertBox">
+        <div class="popup-header"><h2 id="appAlertTitle">Notice</h2></div>
+        <div class="alert-message" id="appAlertMessage"></div>
+        <div class="alert-actions">
+            <button type="button" class="btn-white" id="appAlertCancel" style="width:auto;padding:5px 16px;">Cancel</button>
+            <button type="button" class="btn-blue" id="appAlertOk" style="width:auto;padding:5px 16px;">OK</button>
+        </div>
+    </div>
+
+<script>
+(function () {
+    var IS_EDIT = @(isEdit ? "true" : "false");
+    var IS_VIEW = @(isView ? "true" : "false");
+    var DOC = @Html.Raw(ViewBag.DocJson ?? "{}");
+    var H = DOC.head || {};
+    var URL = {
+        party: '@Url.Action("GetParty", "OutturnSample")',
+        centre: '@Url.Action("GetSalesCentre", "OutturnSample")',
+        portLoad: '@Url.Action("GetPortLoad", "OutturnSample")',
+        portDisch: '@Url.Action("GetPortDischarge", "OutturnSample")',
+        mark: '@Url.Action("GetMark", "OutturnSample")',
+        category: '@Url.Action("GetCategory", "OutturnSample")',
+        invoices: '@Url.Action("GetInvoiceList", "OutturnSample")',
+        save: '@Url.Action("Save", "OutturnSample")',
+        list: '@Url.Action("Index", "OutturnSample")'
+    };
+    var MAX_LINES = 998;
+
+    // ---------------------------------------------------------------- helpers
+    $('#pickerOverlay, #invPicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
+    function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
+    function r2(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 100 + 1e-7) / 100; }
+    function f2(v) { return r2(v).toFixed(2); }
+    function fc(v) { return String(r2(v)); }
+    function iso(d) { return d ? String(d).substring(0, 10) : ''; }
+    function dmy(d) { d = iso(d); return d ? d.substring(8, 10) + '/' + d.substring(5, 7) + '/' + d.substring(0, 4) : ''; }
+    function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
+
+    function closeAlert() { $('#appAlertOverlay, #appAlertBox').fadeOut(120); }
+    function showAlert(message, onOk) { AppMsg.show(message, onOk); }
+    function showConfirm(message, onYes, onNo) {
+        $('#appAlertTitle').text('Confirm');
+        $('#appAlertMessage').text(message || '');
+        $('#appAlertCancel').show().off('click').on('click', function () { closeAlert(); if (onNo) onNo(); });
+        $('#appAlertOk').off('click').on('click', function () { closeAlert(); onYes(); });
+        $('#appAlertOverlay, #appAlertBox').fadeIn(120);
+    }
+    function failMsg(x, fallback) {
+        if (x && x.status === 440) {
+            showAlert((x.responseJSON && x.responseJSON.message) || 'Your session has expired. Please log in again.', function () { window.location.reload(); });
+            return;
+        }
+        if (x && x.statusText === 'abort') return;
+        showAlert((x && x.responseJSON && x.responseJSON.message) || fallback || 'Could not load data. Please try again.');
+    }
+
+    // ---------------------------------------------------------------- state
+    var FY_START = iso(H.FY_START), FY_END = iso(H.FY_END);
+    var TODAY = iso(H.TODAY) || new Date().toISOString().substring(0, 10);
+    var UNIT = H.UNIT || '';
+    var MIN_DOC = '@ViewBag.MinDocDate';
+    var rows = [], seq = 0;
+
+    // ---------------------------------------------------------------- header
+    $('#UNIT_disp').val(UNIT);
+    $('#UNIT_name').val(H.UNIT_NAME || UNIT).attr('title', UNIT);
+    $('#DOCNO').val(H.DOCNO || '');
+    $('#hdrDocNo').text(H.DOCNO || '');
+    $('#SALE_TYPE').val(H.SALE_TYPE || '5'); $('#SALE_TYPE_disp').val(H.SALE_TYPE_NAME || 'Export Sale');
+    $('#SALE_CENTRE').val(H.SALE_CENTRE || ''); $('#SALE_CENTRE_disp').val(H.SALE_CENTRE_NAME || '');
+    $('#PCD').val(H.PCD || ''); $('#PCD_disp').val(H.PARTY_NAME || ''); $('#COUNTRY_disp').val(H.COUNTRY || '');
+    $('#REF_NO').val(H.REF_NO || '');
+    $('#PORT_LOAD').val(H.PORT_LOAD || ''); $('#PORT_LOAD_disp').val(H.PORT_LOAD_NAME || '');
+    $('#PORT_DISCH').val(H.PORT_DISCH || ''); $('#PORT_DISCH_disp').val(H.PORT_DISCH_NAME || '');
+    $('#SHIP_MARK').val(H.SHIP_MARK || '');
+
+    var MAX_DT = TODAY < FY_END ? TODAY : FY_END;
+    if (IS_EDIT) {
+        $('#DOCDT').val(iso(H.DOCDT)).prop('disabled', true);   // part of the document's key
+    } else {
+        var minDt = FY_START;
+        if (MIN_DOC && MIN_DOC > minDt) minDt = MIN_DOC;
+        $('#DOCDT').attr('min', minDt).attr('max', MAX_DT).val(MAX_DT < minDt ? minDt : MAX_DT);
+    }
+    // VB6 Form_Load: the list's Confirmation Date From / To = the year start / today (or the year end).
+    $('#invFromDate').val(FY_START);
+    $('#invToDate').val(MAX_DT);
+
+    function applyModeUi() {
+        $('#SALE_CENTRE, #PCD, #PORT_LOAD, #PORT_DISCH').prop('readonly', IS_VIEW).attr('placeholder', IS_VIEW ? '' : 'Click to select');
+        $('#btnSelectInv, #btnRemoveRows').toggleClass('is-disabled', IS_VIEW);
+        if (IS_VIEW) $('input, select, textarea').prop('disabled', true);
+    }
+
+    // ---------------------------------------------------------------- lines
+    function lineKey(r) { return [r.INVNO || '', iso(r.PACK_DATE), r.MARK || '', r.GRADE || ''].join('|').toUpperCase(); }
+
+    function newRow(src) {
+        var r = $.extend({
+            MARK: '', MARK_NAME: '', INVNO: '', PACK_DATE: '', GRADE: '', GRADE_NAME: '', CAT: '', CATEGORY: '',
+            BAG_CHEST: 0, NET_WT: 0, TNET_WT: 0, TGROSS_WT: 0, SAMPLE_QTY: 0, APPROVED: false, SHIP_MARK: '', CONT_NO: '', CONT_DT: ''
+        }, src || {});
+        ['MARK', 'MARK_NAME', 'INVNO', 'GRADE', 'GRADE_NAME', 'CAT', 'CATEGORY', 'SHIP_MARK', 'CONT_NO'].forEach(function (k) { r[k] = r[k] || ''; });
+        r.PACK_DATE = iso(r.PACK_DATE); r.CONT_DT = iso(r.CONT_DT);
+        ['BAG_CHEST', 'NET_WT', 'TNET_WT', 'TGROSS_WT', 'SAMPLE_QTY'].forEach(function (k) { r[k] = r2(r[k]); });
+        r.APPROVED = !!r.APPROVED;
+        r._cid = ++seq;
+        return r;
+    }
+    function rowOf($el) { var cid = $el.closest('tr').data('cid'); for (var i = 0; i < rows.length; i++) if (rows[i]._cid == cid) return rows[i]; return null; }
+
+    // The lot and its weights come from the Confirmed Lot List; Sample / Approved / Shipping Mark are keyed.
+    function renderGrid() {
+        var $tb = $('#gridBody').empty();
+        var dis = IS_VIEW ? ' disabled' : '';
+        rows.forEach(function (r, i) {
+            r.SRLNO = i + 1;
+            var tr = $('<tr data-cid="' + r._cid + '"></tr>');
+            tr.append('<td><input type="checkbox" class="rowChk"' + dis + ' /></td>');
+            tr.append('<td>' + r.SRLNO + '</td>');
+            tr.append('<td title="' + esc(r.MARK) + '">' + esc(r.MARK_NAME || r.MARK) + '</td>');
+            tr.append('<td>' + esc(r.INVNO) + '</td>');
+            tr.append('<td>' + esc(dmy(r.PACK_DATE)) + '</td>');
+            tr.append('<td title="' + esc(r.GRADE) + '">' + esc(r.GRADE_NAME || r.GRADE) + '</td>');
+            tr.append('<td title="' + esc(r.CAT) + '">' + esc(r.CATEGORY) + '</td>');
+            tr.append('<td class="num">' + fc(r.BAG_CHEST) + '</td>');
+            tr.append('<td class="num">' + f2(r.TNET_WT) + '</td>');
+            tr.append('<td class="key"><input type="number" class="cell cell-sample" min="0" step="0.01" value="' + r.SAMPLE_QTY + '"' + dis + ' /></td>');
+            tr.append('<td class="key" style="text-align:center;"><input type="checkbox" class="cell-appr"' + (r.APPROVED ? ' checked' : '') + dis + ' /></td>');
+            tr.append('<td class="key"><input type="text" class="cell cell-ship" maxlength="500" value="' + esc(r.SHIP_MARK) + '"' + dis +
+                      (IS_VIEW ? '' : ' placeholder="(header Shipping Mark)"') + ' /></td>');
+            tr.append('<td>' + esc(r.CONT_NO) + (r.CONT_DT ? ' dt. ' + esc(dmy(r.CONT_DT)) : '') + '</td>');
+            $tb.append(tr);
+        });
+        if (!rows.length) $tb.append('<tr><td colspan="13" style="text-align:center;color:#666;">Pick the Buyer, then use "Select Lots" to pick the confirmed lots whose outturn samples are sent.</td></tr>');
+        refreshTotals();
+    }
+
+    function refreshTotals() {
+        var t = { BAG_CHEST: 0, TNET_WT: 0, SAMPLE_QTY: 0 };
+        rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
+        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f2(t.TNET_WT)); $('#ftSample').text(f2(t.SAMPLE_QTY));
+        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_NET').val(f2(t.TNET_WT)); $('#TOTAL_SAMPLE').val(f2(t.SAMPLE_QTY));
+    }
+
+    $('#gridBody').on('input change', '.cell-sample', function () { var r = rowOf($(this)); if (r) { r.SAMPLE_QTY = num($(this).val()); refreshTotals(); } });
+    $('#gridBody').on('change', '.cell-appr', function () { var r = rowOf($(this)); if (r) r.APPROVED = $(this).is(':checked'); });
+    $('#gridBody').on('input change', '.cell-ship', function () { var r = rowOf($(this)); if (r) r.SHIP_MARK = $(this).val(); });
+
+    $('#chkAll').on('change', function () { $('.rowChk:not(:disabled)').prop('checked', $(this).is(':checked')); });
+    $('#btnRemoveRows').on('click', function () {
+        if (IS_VIEW) return;
+        var cids = $('.rowChk:checked').map(function () { return $(this).closest('tr').data('cid'); }).get();
+        if (!cids.length) { showAlert('Select at least one row to remove.'); return; }
+        rows = rows.filter(function (r) { return cids.indexOf(r._cid) === -1; });
+        $('#chkAll').prop('checked', false);
+        renderGrid();
+    });
+
+    // ---------------------------------------------------------------- lookups
+    var LOOKUPS = {
+        party: { url: URL.party, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Buyer' }, { name: 'COUNTRY', text: 'Country' }] },
+        centre: { url: URL.centre, fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Sale Centre' }] },
+        portLoad: { url: URL.portLoad, selectMode: 'empty', fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Port' }, { name: 'COUNTRY', text: 'Country' }] },
+        portDisch: { url: URL.portDisch, selectMode: 'empty', urlParam: function () { return { party: $('#PCD').val() || '' }; },
+                     fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Port' }, { name: 'COUNTRY', text: 'Country' }] },
+        mark: { url: URL.mark, selectMode: 'empty', fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Mark' }, { name: 'GARDEN', text: 'Garden' }] },
+        category: { url: URL.category, selectMode: 'empty', fields: [{ name: 'CODE', text: 'Code' }, { name: 'NAME', text: 'Category' }, { name: 'GRADE_TYPE', text: 'Grade Type' }] }
+    };
+
+    function pickedRow($input, cfg) {
+        var key = cfg.fields[0].name, v = String($input.val() == null ? '' : $input.val()), data = [];
+        try { data = $input.inputpicker('data') || []; } catch (e) { data = []; }
+        for (var i = 0; i < data.length; i++) { if (String(data[i][key]) === v) return data[i]; }
+        return null;
+    }
+    function showPickerList($orig) {
+        $orig.inputpicker('show');
+        $orig.next('.inputpicker-overflow-hidden').find('input').trigger($.Event('keyup', { keyCode: 0 }));
+    }
+    function pickerOptions(cfg) {
+        var o = {
+            url: cfg.url, fields: cfg.fields, fieldText: cfg.fields[0].name, fieldValue: cfg.fields[0].name,
+            headShow: true, filterOpen: true, autoOpen: true, pagination: true,
+            pageField: 'p', pageLimitField: 'limit', pageLimit: 10, pageCountField: 'count', width: 'auto', urlDelay: 0.2
+        };
+        if (cfg.urlParam) o.urlParam = cfg.urlParam();
+        if (cfg.selectMode) o.selectMode = cfg.selectMode;
+        return o;
+    }
+    function visibleInput($orig) { return $orig.next('.inputpicker-overflow-hidden').find('input'); }
+
+    function openLookup(key, $input, onSelect, onClear) {
+        var cfg = LOOKUPS[key];
+        $('.inputpicker-wrapped-list').remove();
+        if ($input.hasClass('inputpicker-original')) {
+            if (cfg.urlParam) { try { $input.inputpicker('set', 'urlParam', cfg.urlParam()); } catch (e) { } }
+            setTimeout(function () { showPickerList($input); }, 0);
+            return;
+        }
+        $input.inputpicker(pickerOptions(cfg));
+        setTimeout(function () { showPickerList($input); }, 0);
+        function deliver(row) { if (row && onSelect) onSelect(row); }
+        $input.off('inputpicker.select').on('inputpicker.select', function (e, row) { deliver(row); $(this).inputpicker('hide'); });
+        $input.off('change.ipk').on('change.ipk', function () { deliver(pickedRow($input, cfg)); });
+        if (onClear) {
+            visibleInput($input).on('input', function () {
+                if (!$(this).val() && $input.val()) { $input.val(''); $(this).data('value', ''); onClear(); }
+            });
+        }
+    }
+
+    function clearPortDisch() {
+        $('#PORT_DISCH').val(''); $('#PORT_DISCH_disp').val('');
+        if ($('#PORT_DISCH').hasClass('inputpicker-original')) {
+            visibleInput($('#PORT_DISCH')).val('').data('value', '');
+            try { $('#PORT_DISCH').inputpicker('set', 'urlParam', LOOKUPS.portDisch.urlParam()); } catch (e) { }
+        }
+    }
+
+    var lastParty = $('#PCD').val() || '';
+    $('#PCD').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('party', $(this), function (p) {
+            $('#PCD_disp').val(p.NAME || ''); $('#COUNTRY_disp').val(p.COUNTRY || '');
+            if ((p.CODE || '') !== lastParty) {
+                lastParty = p.CODE || '';
+                clearPortDisch();       // the discharge ports are the buyer's
+                if (rows.length) { rows = []; renderGrid(); showAlert('The lots were removed: they were confirmed to the previous buyer.'); }
+            }
+        });
+    });
+    $('#SALE_CENTRE').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('centre', $(this), function (c) { $('#SALE_CENTRE_disp').val(c.NAME || ''); });
+    });
+    $('#PORT_LOAD').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('portLoad', $(this), function (p) { $('#PORT_LOAD_disp').val(p.NAME || ''); }, function () { $('#PORT_LOAD_disp').val(''); });
+    });
+    $('#PORT_DISCH').on('click focus', function () {
+        if (IS_VIEW) return;
+        openLookup('portDisch', $(this), function (p) { $('#PORT_DISCH_disp').val(p.NAME || ''); }, function () { $('#PORT_DISCH_disp').val(''); });
+    });
+
+    // ---------------------------------------------------------------- Confirmed Lot List popup
+    var invRows = [], invReq = 0;
+
+    function initFilter(id, key) {
+        var $orig = $(id);
+        if ($orig.hasClass('inputpicker-original')) return;
+        $orig.inputpicker(pickerOptions(LOOKUPS[key]));
+        visibleInput($orig).on('input', function () {
+            if (!$(this).val() && $orig.val()) { $orig.val(''); $(this).data('value', ''); }
+        });
+    }
+
+    // VB6 Command4_Click: "Party Can't be Empty".
+    function openInvoices() {
+        if (IS_VIEW) return;
+        if (!$('#PCD').val()) { showAlert("Party Can't be Empty"); return; }
+        if (rows.length >= MAX_LINES) { showAlert('A document can hold at most ' + MAX_LINES + ' lots.'); return; }
+        $('#invFind').val('');
+        $('#pickerOverlay, #invPicker').fadeIn(120, function () { initFilter('#invMark', 'mark'); initFilter('#invCategory', 'category'); });
+        loadInvoices();
+    }
+    function closeInvoices() { $('.inputpicker-wrapped-list').hide(); $('#pickerOverlay, #invPicker').fadeOut(120); }
+
+    function loadInvoices() {
+        if (!$('#invFromDate').val() || !$('#invToDate').val()) { showAlert('INVALID DATE !'); return; }
+        var reqId = ++invReq;
+        $('.inputpicker-wrapped-list').hide();
+        invRows = [];
+        $('#invCount').text('');
+        $('#invBody').html('<p class="picker-empty">Loading...</p>');
+        $.getJSON(URL.invoices, {
+            unit: UNIT, party: $('#PCD').val() || '', saleType: $('#SALE_TYPE').val() || '5',
+            mark: $('#invMark').val() || '', category: $('#invCategory').val() || '',
+            fromDate: $('#invFromDate').val(), toDate: $('#invToDate').val(),
+            docno: IS_EDIT ? ($('#DOCNO').val() || '') : '', docdt: IS_EDIT ? iso(H.DOCDT) : ''
+        }).done(function (data) {
+            if (reqId !== invReq) return;
+            var have = {};
+            rows.forEach(function (r) { have[lineKey(r)] = true; });
+            invRows = (data || []).filter(function (d) { return !have[lineKey(d)]; })
+                                  .map(function (d, i) { d._i = i; d._sel = false; return d; });
+            renderInvoices();
+        }).fail(function (x) {
+            if (reqId !== invReq) return;
+            $('#invBody').html('<p class="picker-empty">Could not load the lots. Click Refresh to try again.</p>');
+            failMsg(x);
+        });
+    }
+
+    var INV_COLS = [['MARK_NAME', 'Mark'], ['INVNO', 'Inv No.'], ['PACK_DATE', 'Pack Date', 'date'], ['GRADE_NAME', 'Grade'], ['CATEGORY', 'Category'],
+                    ['BAG_CHEST', 'Bags', 'cnt'], ['NET_WT', 'Net.Wt.', 'num'], ['TNET_WT', 'Inv. Kgs.', 'num'],
+                    ['CONT_NO', 'Conf. No'], ['CONT_DT', 'Conf. Date', 'date'], ['STOCK_BAGS', 'Stock Bags', 'cnt']];
+    function isNumKind(k) { return k === 'num' || k === 'cnt'; }
+    function cellText(v, kind) { if (v == null && isNumKind(kind)) return ''; return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function cell(v, kind) { return '<td' + (isNumKind(kind) ? ' class="num"' : '') + '>' + esc(cellText(v, kind)) + '</td>'; }
+    function invText(d) { return INV_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.MARK || '', d.GRADE || '']).join(' ').toUpperCase(); }
+    function shownInvoices() {
+        var term = $.trim($('#invFind').val()).toUpperCase();
+        return invRows.filter(function (d) { return !term || invText(d).indexOf(term) >= 0; });
+    }
+    function renderInvoices() {
+        var shown = shownInvoices();
+        var html = '<table><thead><tr><th style="width:30px;">Tag</th>' +
+            INV_COLS.map(function (c) { return '<th' + (isNumKind(c[2]) ? ' class="num"' : '') + '>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>';
+        shown.forEach(function (d) {
+            html += '<tr data-i="' + d._i + '"><td><input type="checkbox" class="invChk"' + (d._sel ? ' checked' : '') + ' /></td>' +
+                INV_COLS.map(function (c) { return cell(d[c[0]], c[2]); }).join('') + '</tr>';
+        });
+        html += '</tbody></table>';
+        if (!invRows.length) html += '<p class="picker-empty">No lot confirmed to this buyer (Export Sale, confirmation date / Mark / Category as selected) is waiting for an outturn sample.</p>';
+        else if (!shown.length) html += '<p class="picker-empty">No lot matches the search.</p>';
+        $('#invBody').html(html);
+        $('#invCount').text(invRows.length ? shown.length + ' of ' + invRows.length + ' lots' : '');
+    }
+    function invAt(i) { for (var k = 0; k < invRows.length; k++) { if (invRows[k]._i == i) return invRows[k]; } return null; }
+
+    $('#invBody').on('click', 'tr[data-i]', function (e) {
+        var d = invAt($(this).data('i')); if (!d) return;
+        var $chk = $(this).find('.invChk');
+        if (!$(e.target).is('.invChk')) $chk.prop('checked', !$chk.is(':checked'));
+        d._sel = $chk.is(':checked');
+    });
+    $('#invFind').on('input', renderInvoices);
+    $('#btnInvRefresh').on('click', loadInvoices);
+    $('#btnInvSelectAll').on('click', function () { shownInvoices().forEach(function (d) { d._sel = true; }); renderInvoices(); });
+    $('#btnInvDeselectAll').on('click', function () { shownInvoices().forEach(function (d) { d._sel = false; }); renderInvoices(); });
+    $('#invClose, #btnInvCancel').on('click', closeInvoices);
+    $('#btnSelectInv').on('click', openInvoices);
+
+    // VB6 Command6_Click "OK": one grid line per tagged lot.
+    $('#btnInvOk').on('click', function () {
+        var onGrid = {};
+        rows.forEach(function (r) { onGrid[lineKey(r)] = true; });
+        var picked = invRows.filter(function (d) { return d._sel && !onGrid[lineKey(d)]; });
+        if (!picked.length) { showAlert('Tag at least one lot.'); return; }
+        if (rows.length + picked.length > MAX_LINES) { showAlert('A document can hold at most ' + MAX_LINES + ' lots.'); return; }
+        picked.forEach(function (d) {
+            rows.push(newRow({
+                MARK: d.MARK, MARK_NAME: d.MARK_NAME, INVNO: d.INVNO, PACK_DATE: d.PACK_DATE, GRADE: d.GRADE, GRADE_NAME: d.GRADE_NAME,
+                CAT: d.CAT, CATEGORY: d.CATEGORY, BAG_CHEST: d.BAG_CHEST, NET_WT: d.NET_WT, TNET_WT: d.TNET_WT, TGROSS_WT: d.TGROSS_WT,
+                CONT_NO: d.CONT_NO, CONT_DT: d.CONT_DT
+            }));
+        });
+        closeInvoices();
+        renderGrid();
+    });
+
+    // ---------------------------------------------------------------- save
+    function payload() {
+        return {
+            UNIT: $('#UNIT_disp').val(), IsNew: !IS_EDIT,
+            DOCNO: $('#DOCNO').val() || null, DOCDT: $('#DOCDT').val() || null,
+            SALE_CENTRE: $('#SALE_CENTRE').val() || null, PCD: $('#PCD').val() || null, REF_NO: $('#REF_NO').val(),
+            PORT_LOAD: $('#PORT_LOAD').val() || null, PORT_DISCH: $('#PORT_DISCH').val() || null, SHIP_MARK: $('#SHIP_MARK').val(),
+            LINES: rows.map(function (r) {
+                return {
+                    INVNO: r.INVNO, PACK_DATE: r.PACK_DATE || null, MARK: r.MARK, GRADE: r.GRADE, CONT_NO: r.CONT_NO || null,
+                    SAMPLE_QTY: r.SAMPLE_QTY, APPROVED: r.APPROVED, SHIP_MARK: r.SHIP_MARK || null
+                };
+            })
+        };
+    }
+
+    // VB6 txtDocdt_Validate + Command1_Click (same order and messages).
+    function validate() {
+        var d = $('#DOCDT').val();
+        if (!d) return 'INVALID DATE !';
+        if (!IS_EDIT) {
+            if (d > TODAY) return 'Can not enter future date ' + dmy(d);
+            if (d < FY_START || d > FY_END) return 'Date not between financial Year';
+            if (d < ($('#DOCDT').attr('min') || '') || d > ($('#DOCDT').attr('max') || '9999')) {
+                return 'Date must be between ' + dmy($('#DOCDT').attr('min')) + ' and ' + dmy($('#DOCDT').attr('max')) + '.';
+            }
+        }
+        if (!$('#PCD').val()) return 'Party cannot be blank';
+        if (!$('#SALE_CENTRE').val()) return 'Sales Centre cannot be blank';
+        if (!$('#SALE_TYPE').val()) return 'Sale Type cannot be blank';
+        if (!rows.length) return 'No Record in Datagrid to Save';
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            if (!r.INVNO) return 'Without Invoice Detail, Record Can Not be Saved.';
+            if (!(r.BAG_CHEST > 0)) return 'Line ' + r.SRLNO + ': Enter Bag Invoice Detail !';
+            if (r.SAMPLE_QTY < 0) return 'Line ' + r.SRLNO + ': Sample cannot be negative.';
+        }
+        return null;
+    }
+
+    var saving = false;
+    $('#btnSave').on('click', function () {
+        if (IS_VIEW || saving) return;
+        var err = validate();
+        if (err) { showAlert(err); return; }
+        showConfirm('Are you sure?', function () {
+            saving = true;
+            $('#btnSave').prop('disabled', true);
+            $.ajax({ url: URL.save, type: 'POST', contentType: 'application/json', data: JSON.stringify(payload()) })
+                .done(function (resp) {
+                    if (resp && resp.success) {
+                        var no = resp.data && resp.data.docno ? resp.data.docno : '';
+                        showAlert('Saved successfully.' + (no ? '\n' + 'Document No. ' + no : ''), function () { window.location.href = URL.list; });
+                    } else {
+                        showAlert((resp && resp.message) || 'Save failed.');
+                    }
+                })
+                .fail(function (x) { failMsg(x, 'Save failed.'); })
+                .always(function () { saving = false; $('#btnSave').prop('disabled', false); });
+        });
+    });
+
+    // ---------------------------------------------------------------- init
+    rows = (DOC.lines || []).map(function (l) { return newRow(l); });
+    renderGrid();
+    applyModeUi();
+    $(window).on('beforeunload pagehide', function () { $('.inputpicker-wrapped-list').hide(); });
+})();
+</script>
+@Html.Partial("_RecordLock")
+</body>
+</html>
