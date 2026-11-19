@@ -1,7 +1,7 @@
 @{
-    // Shared by TaxInvoicePrinting (03020100T) and ExportInvoicePrinting (03020900T, TT).
-    string ctl = (string)ViewBag.Controller;
-    ViewBag.Title = (bool)ViewBag.Tt ? "Tax Invoice Printing(TT)" : "Tax Invoice Printing";
+    // Tax Invoice Printing (03020100T). The TT variant (Export Invoice Printing) is in ERP_PacketSalesExport.
+    string ctl = "TaxInvoicePrinting";
+    ViewBag.Title = "Tax Invoice Printing";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 @Html.Partial("_HsReportHead")
@@ -78,7 +78,6 @@
     $(function () {
         HsReport.init({ title: "@ViewBag.Title", fyFrom: "@ViewBag.FinancialYearFrom", fyTo: "@ViewBag.FinancialYearTo" });
         var lookup = '@Url.Action("Lookup", ctl)';
-        var tt = @(((bool)ViewBag.Tt) ? "true" : "false");
         function reloadInvoices() { HsReport.reload("Invoices"); }
         HsReport.picker({ id: "Unit", multiple: false, placeholder: "Select Unit", width: "320px",
             load: function () { return $.getJSON('@Url.Action("Units", ctl)'); },
@@ -86,7 +85,7 @@
         HsReport.picker({ id: "SaleType", multiple: false, placeholder: "Select Sales Type",
             load: function () {
                 var unit = HsReport.value("Unit");
-                return unit ? $.getJSON(lookup, { what: "GetSaleTypes", tt: tt, unit: unit }) : [];
+                return unit ? $.getJSON(lookup, { what: "GetSaleTypes", unit: unit }) : [];
             },
             onChange: reloadInvoices });
         HsReport.picker({ id: "Invoices", width: "420px", placeholder: "Select Inv No", allText: "", emptyText: "No invoices for this Unit / Sales Type / period",
