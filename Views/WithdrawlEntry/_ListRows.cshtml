@@ -41,8 +41,8 @@
             <td>@(string.IsNullOrEmpty(row.WITH_FROM_NAME) ? row.WITH_FROM : row.WITH_FROM_NAME)</td>
             <td class="num">@((row.LOTS ?? 0).ToString("0"))</td>
             <td class="num">@((row.BAGS ?? 0).ToString("0.##"))</td>
-            <td class="num">@((row.TNET_WT ?? 0).ToString("0.00"))</td>
-            <td class="num">@((row.WITHDRAWL_QTY ?? 0).ToString("0.00"))</td>
+            <td class="num">@((row.TNET_WT ?? 0).ToString("0.000"))</td>
+            <td class="num">@((row.WITHDRAWL_QTY ?? 0).ToString("0.000"))</td>
             <td class="num">@((row.WDO_LOTS ?? 0).ToString("0"))</td>
         </tr>
         <tr class="row-detail" id="@detailId" style="display:none;" data-docno="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT">

@@ -178,7 +178,7 @@
             var REDIRECT_ERROR = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(redirectError ?? "", new Newtonsoft.Json.JsonSerializerSettings { StringEscapeHandling = Newtonsoft.Json.StringEscapeHandling.EscapeHtml }));
             if (REDIRECT_ERROR) showAlert(REDIRECT_ERROR);
 
-            function f2(v) { v = parseFloat(v); return (isNaN(v) ? 0 : v).toFixed(2); }
+            function f2(v) { v = parseFloat(v); return (isNaN(v) ? 0 : v).toFixed(3); }
             function f0(v) { v = parseFloat(v); return String(isNaN(v) ? 0 : Math.round(v * 100) / 100); }
             function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
             function dmy(d) { d = d ? String(d).substring(0, 10) : ''; return d ? d.substring(8, 10) + '/' + d.substring(5, 7) + '/' + d.substring(0, 4) : ''; }
