@@ -40,7 +40,7 @@
             <td>@(string.IsNullOrWhiteSpace(row.PCD) ? row.PARTY_NAME : row.PCD + " - " + row.PARTY_NAME)</td>
             <td title="@row.SALE_CENTRE">@row.SALE_CENTRE_NAME</td>
             <td class="num">@((row.BAGS ?? 0).ToString("0.##"))</td>
-            <td class="num">@((row.ORDER_QTY ?? 0).ToString("0.00"))</td>
+            <td class="num">@((row.ORDER_QTY ?? 0).ToString("0.000"))</td>
             <td class="num">@((row.AMT ?? 0).ToString("0.00"))</td>
             <td>@row.INV_NO</td>
         </tr>

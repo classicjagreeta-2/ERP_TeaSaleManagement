@@ -303,6 +303,8 @@
     $('#pickerOverlay, #stockPicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
     function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
     function r2(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 100 + 1e-7) / 100; }
+    function r3(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 1000 + 1e-7) / 1000; }
+    function f3(v) { return r3(v).toFixed(3); }
     function f2(v) { return r2(v).toFixed(2); }
     function fc(v) { return String(r2(v)); }            // bags: no forced decimals
     function iso(d) { return d ? String(d).substring(0, 10) : ''; }
@@ -431,11 +433,11 @@
             tr.append('<td class="num"><input type="text" inputmode="decimal" class="num f-BAG_CHEST" data-col="BAG_CHEST" value="' + fc(r.BAG_CHEST) + '"' + ro(lk) + ' /></td>');
             tr.append('<td class="num">' + esc(r.CHESTSLF || '') + '</td>');
             tr.append('<td class="num">' + esc(r.CHESTSLT || '') + '</td>');
-            tr.append('<td class="num c-NET_WT">' + f2(r.NET_WT) + '</td>');
+            tr.append('<td class="num c-NET_WT">' + f3(r.NET_WT) + '</td>');
             // VB6 Form_Load: Inv. Kgs and Kgs take focus on location "JST" only.
-            tr.append(IS_JST ? numCell(r, 'TNET_WT', lk) : '<td class="num c-TNET_WT">' + f2(r.TNET_WT) + '</td>');
-            tr.append('<td class="num c-TGROSS_WT">' + f2(r.TGROSS_WT) + '</td>');
-            tr.append(IS_JST ? numCell(r, 'ORDER_QTY', lk) : '<td class="num c-ORDER_QTY">' + f2(r.ORDER_QTY) + '</td>');
+            tr.append(IS_JST ? numCell(r, 'TNET_WT', lk) : '<td class="num c-TNET_WT">' + f3(r.TNET_WT) + '</td>');
+            tr.append('<td class="num c-TGROSS_WT">' + f3(r.TGROSS_WT) + '</td>');
+            tr.append(IS_JST ? numCell(r, 'ORDER_QTY', lk) : '<td class="num c-ORDER_QTY">' + f3(r.ORDER_QTY) + '</td>');
             tr.append(numCell(r, 'SAMPLE_QTY', lk));
             tr.append(numCell(r, 'RATE', lk || rateLocked()));
             tr.append('<td class="num c-AMT">' + f2(r.AMT) + '</td>');
@@ -443,23 +445,23 @@
             tr.append('<td>' + esc(r.WAREHOUSE_NAME) + '</td>');
             tr.append('<td>' + esc(r.SALE_CENTRE_NAME) + '</td>');
             tr.append('<td>' + esc(r.SALE_CENTRE) + '</td>');
-            tr.append('<td class="num">' + (r.CONF_QTY ? f2(r.CONF_QTY) : '') + '</td>');
+            tr.append('<td class="num">' + (r.CONF_QTY ? f3(r.CONF_QTY) : '') + '</td>');
             $tb.append(tr);
         });
         if (!rows.length) $tb.append('<tr><td colspan="23" style="text-align:center;color:#666;">Use "Select Invoices" to pick the garden invoices from the stock.</td></tr>');
         refreshTotals();
     }
     function numCell(r, col, locked) {
-        return '<td class="num"><input type="text" inputmode="decimal" class="num f-' + col + '" data-col="' + col + '" value="' + f2(r[col]) + '"' + ro(locked) + ' /></td>';
+        return '<td class="num"><input type="text" inputmode="decimal" class="num f-' + col + '" data-col="' + col + '" value="' + f3(r[col]) + '"' + ro(locked) + ' /></td>';
     }
 
     // VB6 grid footers: Bags, Inv. Kgs, Total Gross Wt, Kgs, Amount.
     function refreshTotals() {
         var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0, ORDER_QTY: 0, AMT: 0 };
         rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
-        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f2(t.TNET_WT)); $('#ftGross').text(f2(t.TGROSS_WT));
-        $('#ftKgs').text(f2(t.ORDER_QTY)); $('#ftAmt').text(f2(t.AMT));
-        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_KGS').val(f2(t.ORDER_QTY)); $('#TOTAL_AMT').val(f2(t.AMT));
+        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f3(t.TNET_WT)); $('#ftGross').text(f3(t.TGROSS_WT));
+        $('#ftKgs').text(f3(t.ORDER_QTY)); $('#ftAmt').text(f2(t.AMT));
+        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_KGS').val(f3(t.ORDER_QTY)); $('#TOTAL_AMT').val(f2(t.AMT));
     }
 
     function findRow(cid) { return rows.find(function (r) { return r._cid == cid; }); }
@@ -482,7 +484,7 @@
         ['NET_WT', 'TGROSS_WT', 'AMT'].forEach(function (c) { $tr.find('.c-' + c).text(f2(r[c])); });
         ['TNET_WT', 'ORDER_QTY'].forEach(function (c) {
             var $in = $tr.find('input.f-' + c);
-            if ($in.length) $in.val(f2(r[c])); else $tr.find('.c-' + c).text(f2(r[c]));
+            if ($in.length) $in.val(f3(r[c])); else $tr.find('.c-' + c).text(f3(r[c]));
         });
     }
 
