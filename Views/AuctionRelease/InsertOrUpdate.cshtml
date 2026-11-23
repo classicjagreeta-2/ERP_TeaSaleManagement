@@ -330,6 +330,8 @@
     $('#pickerOverlay, #stockPicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
     function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
     function r2(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 100 + 1e-7) / 100; }
+    function r3(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 1000 + 1e-7) / 1000; }
+    function f3(v) { return r3(v).toFixed(3); }
     function f2(v) { return r2(v).toFixed(2); }
     function fc(v) { return String(r2(v)); }            // bags: no forced decimals
     function iso(d) { return d ? String(d).substring(0, 10) : ''; }
@@ -461,9 +463,9 @@
             tr.append('<td class="num"><input type="text" inputmode="decimal" class="num f-rel" value="' + fc(r.RELEASE_QTY) + '"' + ro() +
                       ' title="At most ' + fc(maxRelease(r)) + '" /></td>');
             tr.append('<td>' + esc(r.SEASON) + '</td>');
-            tr.append('<td class="num">' + f2(r.NET_WT) + '</td>');
-            tr.append('<td class="num c-TNET_WT">' + f2(r.TNET_WT) + '</td>');
-            tr.append('<td class="num c-TGROSS_WT">' + f2(r.TGROSS_WT) + '</td>');
+            tr.append('<td class="num">' + f3(r.NET_WT) + '</td>');
+            tr.append('<td class="num c-TNET_WT">' + f3(r.TNET_WT) + '</td>');
+            tr.append('<td class="num c-TGROSS_WT">' + f3(r.TGROSS_WT) + '</td>');
             $tb.append(tr);
         });
         if (!rows.length) $tb.append('<tr><td colspan="21" style="text-align:center;color:#666;">Use "Select Stock" to pick the lots to release.</td></tr>');
@@ -476,8 +478,8 @@
         rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
         $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftAwr').text(fc(t.AWR_QTY)); $('#ftAlloc').text(fc(t.ALLOC_QTY));
         $('#ftOffer').text(fc(t.OFFER_QTY)); $('#ftSold').text(fc(t.SOLD_QTY)); $('#ftRel').text(fc(t.RELEASE_QTY));
-        $('#ftTnet').text(f2(t.TNET_WT)); $('#ftGross').text(f2(t.TGROSS_WT));
-        $('#TOTAL_REL').val(fc(t.RELEASE_QTY)); $('#TOTAL_KGS').val(f2(t.TNET_WT));
+        $('#ftTnet').text(f3(t.TNET_WT)); $('#ftGross').text(f3(t.TGROSS_WT));
+        $('#TOTAL_REL').val(fc(t.RELEASE_QTY)); $('#TOTAL_KGS').val(f3(t.TNET_WT));
     }
 
     function renderNotReleased() {
@@ -490,7 +492,7 @@
             $tb.append('<tr><td title="' + esc(n.MARK) + '">' + esc(n.MARK_NAME || n.MARK) + '</td><td>' + esc(n.INVNO) + '</td><td>' + esc(dmy(n.PACK_DATE)) +
                 '</td><td>' + esc(n.GRADE) + '</td><td>' + esc(n.CATEGORY) + '</td><td class="num">' + fc(n.BAG_CHEST) + '</td><td class="num">' + fc(n.AWR_QTY) +
                 '</td><td class="num">' + fc(n.ALLOC_QTY) + '</td><td class="num">' + fc(n.OFFER_QTY) + '</td><td class="num">' + fc(n.SOLD_QTY) +
-                '</td><td class="num">' + f2(n.NET_WT) + '</td></tr>');
+                '</td><td class="num">' + f3(n.NET_WT) + '</td></tr>');
         });
         if (!notReleased.length) $tb.append('<tr><td colspan="11" style="text-align:center;color:#666;">None</td></tr>');
         $('#nrCount').text(notReleased.length);
@@ -509,8 +511,8 @@
         this.value = fc(v);
         r.TNET_WT = r2(num(r.NET_WT) * v);
         if (num(r.GROSS_BAG) > 0) r.TGROSS_WT = r2(num(r.GROSS_BAG) * v);
-        $tr.find('.c-TNET_WT').text(f2(r.TNET_WT));
-        $tr.find('.c-TGROSS_WT').text(f2(r.TGROSS_WT));
+        $tr.find('.c-TNET_WT').text(f3(r.TNET_WT));
+        $tr.find('.c-TGROSS_WT').text(f3(r.TGROSS_WT));
         refreshTotals();
     });
     $('#gridBody').on('focus', 'input.num:not([readonly])', function () { var el = this; setTimeout(function () { el.select(); }, 0); });
@@ -728,7 +730,7 @@
                       ['DESTINATION', 'Destination'], ['WAREHOUSE', 'Warehouse']];
     var STOCK_FOOT = { AWR_QTY: 1, ALLOC_QTY: 1, OFFER_QTY: 1, SOLD_QTY: 1, BAL_QTY: 1 };   // VB6 TDBGrid1 footers
     function isNumKind(k) { return k === 'num' || k === 'cnt'; }
-    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f3(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
     function cell(v, kind) { return '<td' + (isNumKind(kind) ? ' class="num"' : '') + '>' + esc(cellText(v, kind)) + '</td>'; }
     function stockText(d) {
         return STOCK_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.MARK || '', d.GINVNO || '']).join(' ').toUpperCase();

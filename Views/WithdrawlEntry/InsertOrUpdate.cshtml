@@ -438,13 +438,13 @@
             tr.append('<td>' + esc(r.GRADE_NAME) + '</td>');
             tr.append('<td>' + esc(r.CATEGORY) + '</td>');
             tr.append(numInput(r, 'BAG_CHEST', true, fc));
-            tr.append('<td class="num c-NET_WT">' + f2(r.NET_WT) + '</td>');
+            tr.append('<td class="num c-NET_WT">' + f3(r.NET_WT) + '</td>');
             // VB6 Form_Load: Inv. Kgs and Kgs take the focus at location JST only.
-            tr.append(numInput(r, 'TNET_WT', IS_JST, f2));
-            tr.append('<td class="num c-TGROSS_WT">' + f2(r.TGROSS_WT) + '</td>');
+            tr.append(numInput(r, 'TNET_WT', IS_JST, f3));
+            tr.append('<td class="num c-TGROSS_WT">' + f3(r.TGROSS_WT) + '</td>');
             tr.append(numInput(r, 'WITHDRAWL_QTY', IS_JST, fq));
-            tr.append(numInput(r, 'SAMPLE_QTY', true, f2));
-            tr.append(numInput(r, 'OTHER_QTY', true, f2));
+            tr.append(numInput(r, 'SAMPLE_QTY', true, f3));
+            tr.append(numInput(r, 'OTHER_QTY', true, f3));
             // maxlength = T_WITHDRAWL.OUT_LOTNO VARCHAR2(30), SEASON_FROM / SEASON_TO VARCHAR2(4), REMARKS VARCHAR2(100)
             tr.append(textInput(r, 'OUT_LOTNO', 'f-outlot', 30));
             tr.append(textInput(r, 'SEASON_FROM', 'f-season', 4));
@@ -461,16 +461,16 @@
     function refreshTotals() {
         var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0, WITHDRAWL_QTY: 0, SAMPLE_QTY: 0, OTHER_QTY: 0 };
         rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
-        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f2(t.TNET_WT)); $('#ftGross').text(f2(t.TGROSS_WT));
-        $('#ftKgs').text(fq(t.WITHDRAWL_QTY)); $('#ftSam').text(f2(t.SAMPLE_QTY)); $('#ftOth').text(f2(t.OTHER_QTY));
+        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f3(t.TNET_WT)); $('#ftGross').text(f3(t.TGROSS_WT));
+        $('#ftKgs').text(fq(t.WITHDRAWL_QTY)); $('#ftSam').text(f3(t.SAMPLE_QTY)); $('#ftOth').text(f3(t.OTHER_QTY));
         $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_KGS').val(fq(t.WITHDRAWL_QTY));
     }
 
     function findRow(cid) { return rows.find(function (r) { return r._cid == cid; }); }
     function paintRow($tr, r) {
-        $tr.find('.c-NET_WT').text(f2(r.NET_WT));
-        $tr.find('.c-TGROSS_WT').text(f2(r.TGROSS_WT));
-        $tr.find('input.f-TNET_WT').val(f2(r.TNET_WT));
+        $tr.find('.c-NET_WT').text(f3(r.NET_WT));
+        $tr.find('.c-TGROSS_WT').text(f3(r.TGROSS_WT));
+        $tr.find('input.f-TNET_WT').val(f3(r.TNET_WT));
         $tr.find('input.f-WITHDRAWL_QTY').val(fq(r.WITHDRAWL_QTY));
     }
 
@@ -509,7 +509,7 @@
             if (r3(cap - v) < 0) { showAlert("Withdrawl Quantity can't be > " + cap); v = r[col]; }
         }
         r[col] = v;
-        this.value = col === 'BAG_CHEST' ? fc(v) : col === 'WITHDRAWL_QTY' ? fq(v) : f2(v);
+        this.value = col === 'BAG_CHEST' ? fc(v) : col === 'WITHDRAWL_QTY' ? fq(v) : f3(v);
         if (col === 'BAG_CHEST') { recalcBags(r); paintRow($tr, r); afterBags($tr, r); }
         refreshTotals();
     });
@@ -704,7 +704,7 @@
                       ['NET_WT', 'Net.Wt.', 'num'], ['TNET_WT', 'Total Net.Wt.', 'num'], ['TGROSS_WT', 'Total Gross Wt.', 'num'], ['SZ_CODE', 'Code'],
                       ['LOTNO', 'Out LotNo']];
     function isNumKind(k) { return k === 'num' || k === 'cnt'; }
-    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f3(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
     function cell(v, kind) { return '<td' + (isNumKind(kind) ? ' class="num"' : '') + '>' + esc(cellText(v, kind)) + '</td>'; }
     function stockText(d) {
         return STOCK_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.MARK || '']).join(' ').toUpperCase();
