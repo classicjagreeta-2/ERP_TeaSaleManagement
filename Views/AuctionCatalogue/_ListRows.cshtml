@@ -43,8 +43,8 @@
             <td>@(row.PROMPT_DATE?.ToString("dd/MM/yyyy"))</td>
             <td class="num">@((row.LOTS ?? 0).ToString("0"))</td>
             <td class="num">@((row.BAGS ?? 0).ToString("0.##"))</td>
-            <td class="num">@((row.TNET_WT ?? 0).ToString("0.00"))</td>
-            <td class="num">@((row.CATALOGUE_QTY ?? 0).ToString("0.00"))</td>
+            <td class="num">@((row.TNET_WT ?? 0).ToString("0.000"))</td>
+            <td class="num">@((row.CATALOGUE_QTY ?? 0).ToString("0.000"))</td>
             <td class="num">@((row.SOLD_LOTS ?? 0).ToString("0"))</td>
         </tr>
         <tr class="row-detail" id="@detailId" style="display:none;" data-docno="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT">

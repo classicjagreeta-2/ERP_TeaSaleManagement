@@ -140,11 +140,11 @@
                             </div>
                             <div class="form-col-20">
                                 <label>Total Net.Wt.</label>
-                                <input type="text" id="TOTAL_NET" class="num total-box" readonly value="0.00" />
+                                <input type="text" id="TOTAL_NET" class="num total-box" readonly value="0.000" />
                             </div>
                             <div class="form-col-20">
                                 <label>Total Gross Wt.</label>
-                                <input type="text" id="TOTAL_GROSS" class="num total-box" readonly value="0.00" />
+                                <input type="text" id="TOTAL_GROSS" class="num total-box" readonly value="0.000" />
                             </div>
                         </div>
                     </div>
@@ -258,6 +258,8 @@
     $('#pickerOverlay, #invPicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
     function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
     function r2(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 100 + 1e-7) / 100; }
+    function r3(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 1000 + 1e-7) / 1000; }
+    function f3(v) { return r3(v).toFixed(3); }
     function f2(v) { return r2(v).toFixed(2); }
     function fc(v) { return String(r2(v)); }            // bags: no forced decimals
     function iso(d) { return d ? String(d).substring(0, 10) : ''; }
@@ -333,7 +335,7 @@
         }, src || {});
         ['MARK', 'MARK_NAME', 'INVNO', 'SEASON', 'CAT', 'CATEGORY', 'GRADE', 'GRADE_NAME'].forEach(function (k) { r[k] = r[k] || ''; });
         r.PACK_DATE = iso(r.PACK_DATE);
-        ['BAG_CHEST', 'NET_WT', 'TNET_WT', 'TGROSS_WT'].forEach(function (k) { r[k] = r2(r[k]); });
+        ['BAG_CHEST', 'NET_WT', 'TNET_WT', 'TGROSS_WT'].forEach(function (k) { r[k] = r3(r[k]); });
         r._cid = ++seq;
         return r;
     }
@@ -354,9 +356,9 @@
             tr.append('<td title="' + esc(r.CAT) + '">' + esc(r.CATEGORY) + '</td>');
             tr.append('<td title="' + esc(r.GRADE) + '">' + esc(r.GRADE_NAME || r.GRADE) + '</td>');
             tr.append('<td class="num">' + fc(r.BAG_CHEST) + '</td>');
-            tr.append('<td class="num">' + f2(r.NET_WT) + '</td>');
-            tr.append('<td class="num">' + f2(r.TNET_WT) + '</td>');
-            tr.append('<td class="num">' + f2(r.TGROSS_WT) + '</td>');
+            tr.append('<td class="num">' + f3(r.NET_WT) + '</td>');
+            tr.append('<td class="num">' + f3(r.TNET_WT) + '</td>');
+            tr.append('<td class="num">' + f3(r.TGROSS_WT) + '</td>');
             $tb.append(tr);
         });
         if (!rows.length) $tb.append('<tr><td colspan="12" style="text-align:center;color:#666;">Use "Select Invoices" to pick the garden invoices whose samples were received.</td></tr>');
@@ -367,8 +369,8 @@
     function refreshTotals() {
         var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0 };
         rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
-        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f2(t.TNET_WT)); $('#ftGross').text(f2(t.TGROSS_WT));
-        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_NET').val(f2(t.TNET_WT)); $('#TOTAL_GROSS').val(f2(t.TGROSS_WT));
+        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f3(t.TNET_WT)); $('#ftGross').text(f3(t.TGROSS_WT));
+        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_NET').val(f3(t.TNET_WT)); $('#TOTAL_GROSS').val(f3(t.TGROSS_WT));
     }
 
     $('#chkAll').on('change', function () { $('.rowChk:not(:disabled)').prop('checked', $(this).is(':checked')); });
@@ -544,7 +546,7 @@
                     ['CHESTSLF', 'Start No.'], ['CHESTSLT', 'End No.'], ['CATEGORY', 'Category'], ['BAG_CHEST', 'Bags', 'cnt'],
                     ['TNET_WT', 'Total Net.Wt.', 'num'], ['NET_WT', 'Net.Wt.', 'num'], ['TGROSS_WT', 'Total Gross Wt.', 'num']];
     function isNumKind(k) { return k === 'num' || k === 'cnt'; }
-    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f3(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
     function cell(v, kind) { return '<td' + (isNumKind(kind) ? ' class="num"' : '') + '>' + esc(cellText(v, kind)) + '</td>'; }
     function invText(d) {
         return INV_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.MARK || '']).join(' ').toUpperCase();

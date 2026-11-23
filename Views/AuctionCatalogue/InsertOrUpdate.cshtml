@@ -307,6 +307,8 @@
     $('#pickerOverlay, #stockPicker, #appAlertOverlay, #appAlertBox').appendTo(document.body);
     function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
     function r2(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 100 + 1e-7) / 100; }
+    function r3(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 1000 + 1e-7) / 1000; }
+    function f3(v) { return r3(v).toFixed(3); }
     function f2(v) { return r2(v).toFixed(2); }
     function fc(v) { return String(r2(v)); }            // bags: no forced decimals
     function iso(d) { return d ? String(d).substring(0, 10) : ''; }
@@ -452,10 +454,10 @@
             tr.append('<td>' + esc(r.GRADE_NAME) + '</td>');
             tr.append('<td>' + esc(r.CATEGORY) + '</td>');
             tr.append('<td class="num"><input type="text" inputmode="decimal" class="num f-BAG_CHEST" data-col="BAG_CHEST" value="' + fc(r.BAG_CHEST) + '"' + ro(lk) + ' /></td>');
-            tr.append('<td class="num c-NET_WT">' + f2(r.NET_WT) + '</td>');
-            tr.append('<td class="num c-TNET_WT">' + f2(r.TNET_WT) + '</td>');
-            tr.append('<td class="num c-TGROSS_WT">' + f2(r.TGROSS_WT) + '</td>');
-            tr.append('<td class="num c-CATALOGUE_QTY">' + f2(r.CATALOGUE_QTY) + '</td>');
+            tr.append('<td class="num c-NET_WT">' + f3(r.NET_WT) + '</td>');
+            tr.append('<td class="num c-TNET_WT">' + f3(r.TNET_WT) + '</td>');
+            tr.append('<td class="num c-TGROSS_WT">' + f3(r.TGROSS_WT) + '</td>');
+            tr.append('<td class="num c-CATALOGUE_QTY">' + f3(r.CATALOGUE_QTY) + '</td>');
             tr.append(numCell(r, 'SAMPLE_QTY', lk));
             tr.append(numCell(r, 'OTHER_QTY', lk));
             tr.append(numCell(r, 'RATE', lk));
@@ -471,16 +473,16 @@
         $('#AUC_CAT').prop('readonly', categoryLocked()).attr('placeholder', categoryLocked() ? '' : 'Click to select');
     }
     function numCell(r, col, locked) {
-        return '<td class="num"><input type="text" inputmode="decimal" class="num f-' + col + '" data-col="' + col + '" value="' + f2(r[col]) + '"' + ro(locked) + ' /></td>';
+        return '<td class="num"><input type="text" inputmode="decimal" class="num f-' + col + '" data-col="' + col + '" value="' + f3(r[col]) + '"' + ro(locked) + ' /></td>';
     }
 
     // VB6 grid footers: Bags, Inv. Kgs, Total Gross Wt, Kgs, Sam. Qty, Oth. Qty (+ Amount).
     function refreshTotals() {
         var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0, CATALOGUE_QTY: 0, SAMPLE_QTY: 0, OTHER_QTY: 0, AMT: 0 };
         rows.forEach(function (r) { for (var k in t) t[k] += num(r[k]); });
-        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f2(t.TNET_WT)); $('#ftGross').text(f2(t.TGROSS_WT));
-        $('#ftKgs').text(f2(t.CATALOGUE_QTY)); $('#ftSam').text(f2(t.SAMPLE_QTY)); $('#ftOth').text(f2(t.OTHER_QTY)); $('#ftAmt').text(f2(t.AMT));
-        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_KGS').val(f2(t.CATALOGUE_QTY));
+        $('#ftBags').text(fc(t.BAG_CHEST)); $('#ftTnet').text(f3(t.TNET_WT)); $('#ftGross').text(f3(t.TGROSS_WT));
+        $('#ftKgs').text(f3(t.CATALOGUE_QTY)); $('#ftSam').text(f3(t.SAMPLE_QTY)); $('#ftOth').text(f3(t.OTHER_QTY)); $('#ftAmt').text(f2(t.AMT));
+        $('#TOTAL_BAGS').val(fc(t.BAG_CHEST)); $('#TOTAL_KGS').val(f3(t.CATALOGUE_QTY));
     }
 
     function findRow(cid) { return rows.find(function (r) { return r._cid == cid; }); }
@@ -498,7 +500,7 @@
         r.SOLD = r.AMT > 0 ? 'Sold' : '';
     }
     function paintRow($tr, r) {
-        ['NET_WT', 'TNET_WT', 'TGROSS_WT', 'CATALOGUE_QTY', 'AMT'].forEach(function (c) { $tr.find('.c-' + c).text(f2(r[c])); });
+        ['NET_WT', 'TNET_WT', 'TGROSS_WT', 'CATALOGUE_QTY', 'AMT'].forEach(function (c) { $tr.find('.c-' + c).text(f3(r[c])); });
         $tr.find('select.f-sold').val(r.SOLD);
     }
 
@@ -507,7 +509,7 @@
         var col = $(this).data('col'), v = r2(this.value);
         if (v > MAX[col]) { showAlert(COL_LABEL[col] + ' is too large.'); v = r[col]; }
         r[col] = v;
-        this.value = col === 'BAG_CHEST' ? fc(v) : f2(v);
+        this.value = col === 'BAG_CHEST' ? fc(v) : f3(v);
         if (col !== 'COST_RATE') {
             recalc(r, col);
             if (r.CATALOGUE_QTY < 0) showAlert('Line ' + r.SRLNO + ': Sam. Qty + Oth. Qty is more than the Inv. Kgs.');
@@ -762,7 +764,7 @@
                       ['CHESTSLF', 'Start No.'], ['CHESTSLT', 'End No.'], ['CATEGORY', 'Category'], ['BAG_CHEST', 'Bags', 'cnt'], ['NET_WT', 'Net.Wt.', 'num'],
                       ['TNET_WT', 'Total Net.Wt.', 'num'], ['TGROSS_WT', 'Total Gross Wt.', 'num'], ['OUT_LOTNO', 'Out LotNo']];
     function isNumKind(k) { return k === 'num' || k === 'cnt'; }
-    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f2(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
+    function cellText(v, kind) { return kind === 'date' ? dmy(v) : kind === 'num' ? f3(v) : kind === 'cnt' ? fc(v) : (v == null ? '' : String(v)); }
     function cell(v, kind) { return '<td' + (isNumKind(kind) ? ' class="num"' : '') + '>' + esc(cellText(v, kind)) + '</td>'; }
     function stockText(d) {
         return STOCK_COLS.map(function (c) { return cellText(d[c[0]], c[2]); }).concat([d.MARK || '']).join(' ').toUpperCase();
