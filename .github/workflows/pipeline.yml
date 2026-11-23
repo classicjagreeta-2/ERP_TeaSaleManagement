@@ -1,0 +1,93 @@
+# CI/CD for ERP_TeaSaleManagement (ASP.NET MVC, .NET Framework 4.8).
+# Keep the file name pipeline.yml - ERP-DevOps/release-train starts it by that name.
+# Values per environment come from repo Settings -> Secrets and variables -> Actions -> Variables.
+#
+# NOW (transition, everyone still on master):
+#   PR into master / push to master  -> build only (proves the code builds from Git)
+#   push to master + variable DEPLOY_MASTER_TO_UAT=true -> also deploy to UAT
+# AFTER CUTOVER (Release_Next / Release / Main exist):
+#   PR -> Release_Next/Release/Main  -> branch-name check + build
+#   push Release_Next                -> deploy DEV (if DEV_SITE_PATH set)
+#   push Release                     -> deploy UAT
+#   Run workflow on Main, production -> deploy PROD (PROD_DEPLOYERS only)
+# Every deploy first copies the current site to D:\Backups\IIS\<site>\<date_time>_before_<branch-commit>
+# and keeps ALL old versions (set BACKUP_KEEP to a number to limit).
+name: CI-CD
+
+on:
+  pull_request:
+    branches: [master, Release_Next, Release, Main]
+  push:
+    branches: [master, Release_Next, Release]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Where to deploy (uat needs branch Release or master, production needs branch Main)
+        type: choice
+        options: [dev, uat, production]
+        default: uat
+
+jobs:
+  branch-name:
+    if: github.event_name == 'pull_request' && github.base_ref != 'master'
+    uses: classicjagreeta-2/ERP-DevOps/.github/workflows/branch-name.yml@main
+
+  build:
+    uses: classicjagreeta-2/ERP-DevOps/.github/workflows/build-netfx.yml@main
+    with:
+      solution: TeaSaleManagement.sln
+      project: TeaSaleManagement.csproj
+      artifact-name: teasale-web
+
+  deploy-dev:
+    needs: build
+    if: >-
+      vars.DEV_SITE_PATH != '' && (
+        (github.event_name == 'push' && github.ref_name == 'Release_Next') ||
+        (github.event_name == 'workflow_dispatch' && inputs.target == 'dev') )
+    uses: classicjagreeta-2/ERP-DevOps/.github/workflows/deploy-iis.yml@main
+    with:
+      runner-label: iis-dev
+      artifact-name: teasale-web
+      site-path: ${{ vars.DEV_SITE_PATH }}
+      app-pool: ${{ vars.DEV_APP_POOL }}
+      health-url: ${{ vars.DEV_HEALTH_URL }}
+      keep-backups: ${{ vars.BACKUP_KEEP || '0' }}
+      protected-files: ${{ vars.PROTECTED_FILES }}
+      protected-dirs: ${{ vars.PROTECTED_DIRS }}
+
+  deploy-uat:
+    needs: build
+    if: >-
+      (github.ref_name == 'Release' && (github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.target == 'uat'))) ||
+      (github.ref_name == 'master' && vars.DEPLOY_MASTER_TO_UAT == 'true' && (github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')))
+    uses: classicjagreeta-2/ERP-DevOps/.github/workflows/deploy-iis.yml@main
+    with:
+      runner-label: iis-uat
+      artifact-name: teasale-web
+      site-path: ${{ vars.UAT_SITE_PATH }}
+      app-pool: ${{ vars.UAT_APP_POOL }}
+      health-url: ${{ vars.UAT_HEALTH_URL }}
+      keep-backups: ${{ vars.BACKUP_KEEP || '0' }}
+      protected-files: ${{ vars.PROTECTED_FILES }}
+      protected-dirs: ${{ vars.PROTECTED_DIRS }}
+
+  deploy-prod:
+    needs: build
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.target == 'production' &&
+      github.ref_name == 'Main'
+    uses: classicjagreeta-2/ERP-DevOps/.github/workflows/deploy-iis.yml@main
+    with:
+      runner-label: iis-prod
+      artifact-name: teasale-web
+      site-path: ${{ vars.PROD_SITE_PATH }}
+      app-pool: ${{ vars.PROD_APP_POOL }}
+      health-url: ${{ vars.PROD_HEALTH_URL }}
+      keep-backups: ${{ vars.BACKUP_KEEP || '0' }}
+      protected-files: ${{ vars.PROTECTED_FILES }}
+      protected-dirs: ${{ vars.PROTECTED_DIRS }}
+      protected: true
+      allowed-actors: ${{ vars.PROD_DEPLOYERS }}
