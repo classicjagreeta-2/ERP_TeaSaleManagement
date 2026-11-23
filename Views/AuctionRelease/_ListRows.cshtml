@@ -42,7 +42,7 @@
             <td>@(row.PARK == "Y" ? "Provisional" : "")</td>
             <td class="num" title="@((row.NR_LOTS ?? 0) > 0 ? (row.NR_LOTS ?? 0).ToString("0") + " lot(s) listed but not released" : "")">@((row.LOTS ?? 0).ToString("0"))</td>
             <td class="num">@((row.RELEASE_QTY ?? 0).ToString("0.##"))</td>
-            <td class="num">@((row.TNET_WT ?? 0).ToString("0.00"))</td>
+            <td class="num">@((row.TNET_WT ?? 0).ToString("0.000"))</td>
         </tr>
         <tr class="row-detail" id="@detailId" style="display:none;" data-docno="@row.DOCNO" data-docdt="@dt" data-unit="@row.UNIT">
             <td colspan="13" style="background:#f8f9fc;padding:10px 12px;">

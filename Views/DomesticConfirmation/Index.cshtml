@@ -166,7 +166,7 @@
             var REDIRECT_ERROR = @Html.Raw(TeaSaleManagement.ScriptJson.Serialize(redirectError ?? ""));
             if (REDIRECT_ERROR) showAlert(REDIRECT_ERROR);
 
-            function f2(v) { v = parseFloat(v); return (isNaN(v) ? 0 : v).toFixed(2); }
+            function f2(v) { v = parseFloat(v); return (isNaN(v) ? 0 : v).toFixed(3); }
             function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
             function dmy(d) { d = d ? String(d).substring(0, 10) : ''; return d ? d.substring(8, 10) + '/' + d.substring(5, 7) + '/' + d.substring(0, 4) : ''; }
 

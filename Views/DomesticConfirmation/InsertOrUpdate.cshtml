@@ -387,6 +387,8 @@
     function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
     function rn(v, dp) { v = num(v); var s = v < 0 ? -1 : 1, m = Math.pow(10, dp); return s * Math.round(Math.abs(v) * m + 1e-7) / m; }
     function r2(v) { return rn(v, 2); } function r3(v) { return rn(v, 3); }
+    function r3(v) { v = num(v); var s = v < 0 ? -1 : 1; return s * Math.round(Math.abs(v) * 1000 + 1e-7) / 1000; }
+    function f3(v) { return r3(v).toFixed(3); }
     function f2(v) { return r2(v).toFixed(2); }
     // Whole-number / count fields (Pkgs): no forced decimals; only float noise is trimmed.
     function rc(v) { return Math.round(num(v) * 1e6) / 1e6; }
@@ -728,8 +730,8 @@
     function refreshTotals() {
         var t = { BAG_CHEST: 0, TNET_WT: 0, TGROSS_WT: 0, ORDER_QTY: 0, AMT: 0 };
         rows.forEach(function (r) { Object.keys(t).forEach(function (k) { t[k] += num(r[k]); }); });
-        $('#ftBag').text(fc(t.BAG_CHEST)); $('#ftTNet').text(f2(t.TNET_WT)); $('#ftTGross').text(f2(t.TGROSS_WT));
-        $('#ftQty').text(f2(t.ORDER_QTY)); $('#ftAmt').text(f2(t.AMT));
+        $('#ftBag').text(fc(t.BAG_CHEST)); $('#ftTNet').text(f3(t.TNET_WT)); $('#ftTGross').text(f3(t.TGROSS_WT));
+        $('#ftQty').text(f3(t.ORDER_QTY)); $('#ftAmt').text(f2(t.AMT));
     }
 
     function findRow(cid) { return rows.find(function (r) { return r._cid == cid; }); }
@@ -804,7 +806,7 @@
     function isNumKind(k) { return k === 'num' || k === 'cnt'; }
     function cell(v, kind) {
         if (kind === 'date') return '<td>' + esc(dmy(v)) + '</td>';
-        if (kind === 'num') return '<td class="num">' + f2(v) + '</td>';
+        if (kind === 'num') return '<td class="num">' + f3(v) + '</td>';
         if (kind === 'cnt') return '<td class="num">' + fc(v) + '</td>';
         return '<td>' + esc(v) + '</td>';
     }
